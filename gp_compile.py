@@ -360,7 +360,7 @@ def _expand_modules_for_selfhosted(
         namespace = "__gp_namespace_" + alias
         aliases[alias] = namespace
         module_sources.append(expand_module(
-            (base / module_path).resolve(), namespace, (),
+            resolve_module_path(base / module_path), namespace, (),
         ))
 
     removal_edits.extend(alias_call_edits(source, aliases))
