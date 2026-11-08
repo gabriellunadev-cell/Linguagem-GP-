@@ -18,8 +18,8 @@ Branch de evolução no GitHub: `feature/gp-bridge-v0.2`
 ### Validação mais recente — GitHub Actions
 
 - Runner: Ubuntu Linux x64, Python 3.12; resultado não deve ser confundido com validação local Termux/Android.
-- `make validate`: sucesso no commit `1c65079a90b20acf331bfcb4e12c29f3fb578612` (08/11/2026).
-- 263 testes aprovados em 27,068 s.
+- `make validate`: sucesso no commit `895303f0552697fc1e7ff801de0952dea1399cf2` (08/11/2026).
+- 264 testes aprovados em 26,087 s.
 - Corpus diferencial: 6/6 casos em cada uma das seis dimensões (`frontend_supported`, `direct_legacy_exact`, `frontend_bootstrap_exact`, `native_runner_exact`, `native_encoder_exact`, `python_c_semantic`).
 - Fuzz determinístico: 64 iterações, 38 rejeições, 26 aceitas/executadas, zero divergências.
 - Testes HTTP reais: health 200; execução de projeto modular 200 com saída `HTTP: 42`; import externo 400; arquivo único com import 400; preflight CORS Vite 204.
@@ -28,7 +28,7 @@ Branch de evolução no GitHub: `feature/gp-bridge-v0.2`
 ### Testes específicos da Bridge
 
 - 20 testes unitários de payload, limites, caminhos relativos, import aninhado, bloqueio de traversal e execução real.
-- 5 testes de HTTP real contra servidor loopback, incluindo preflight CORS de `http://localhost:5173`.
+- 6 testes de HTTP real contra servidor loopback: health, compile-project, run-project, rejeições de imports e preflight CORS de `http://localhost:5173`.
 - O processo filho do compilador recebe ambiente mínimo em vez de herdar todas as variáveis do servidor.
 ## Estado confirmado
 
