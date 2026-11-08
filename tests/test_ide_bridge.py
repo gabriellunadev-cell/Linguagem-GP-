@@ -12,6 +12,7 @@ from gp_ide_server import (
     MAX_REQUEST_BYTES,
     execute_project,
     execute_source,
+    allowed_origins,
     validate_payload,
     validate_project_payload,
 )
@@ -20,6 +21,11 @@ from gp_ide_server import (
 class GPBridgeTests(unittest.TestCase):
     def test_bridge_binds_to_loopback_only(self):
         self.assertEqual(DEFAULT_HOST, "127.0.0.1")
+
+    def test_default_cors_allows_local_vite_dev_origin(self):
+        origins = allowed_origins()
+        self.assertIn("http://localhost:5173", origins)
+        self.assertIn("http://127.0.0.1:5173", origins)
 
     def test_payload_accepts_simple_gp_file(self):
         source, file_name = validate_payload({"source": 'mostrar("Olá")', "fileName": "principal.gp"})
