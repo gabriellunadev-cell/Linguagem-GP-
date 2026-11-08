@@ -1,0 +1,21 @@
+{
+  "artifact": "gp_frontend_runner.gbc",
+  "artifact_version": 1,
+  "bytecode_format": "GGPC v2",
+  "frontend_format": "GP-IR v1",
+  "builder": "Python bootstrap compile_source",
+  "runtime_input": "entrada_fonte()",
+  "inputs": {
+    "gp.py": "8ce29445720095be73824db4d6c77ea8a774cc78ab084c4773470ce5fab87a2d",
+    "gp_compile.py": "68a4e691bf8eda990197f91f26f5df66606927063c7ce05bc07d1e1f43964578",
+    "gpcompiler/ast.py": "695f2c56c78951de710bf05a67b2e0436843e2392bff2929a532e8ea17c346c0",
+    "gpcompiler/semantic.py": "dfbac92fca207a790e2d0ba163053e740a4b505c760f57285556aad74263be23",
+    "gpcompiler/modules.py": "57f5b0e97cec00d7045548b9afd2188514e6c7fc4a4aa04c2b9ecf0285b3bb6d",
+    "gpcompiler/lower.py": "b901130c781c72830eec0412475fd6d2f6664bf9456e91a30b6f59f3d03174e7",
+    "gpcompiler/bytecode.py": "5d8173be71885bc0bf361a6f5033bd2d4c0a6d406ea6638b273d7dd299431056",
+    "gpcompiler/vm.py": "007e5db54e2079739426f2f52bc9c3bcbeb4aedc07a0edb1b25d8f21342a5c7a",
+    "linguagem/parser_gp.gp": "5dcc9e737531a1c62ba0b6b0a729350d85ca654c0e1963a3c041eece38203952"
+  },
+  "bytecode_sha256": "3dcf7be34ef2c90255f9026d33d5022fb00b570062e9d5c31520967dbbd978b6",
+  "bytecode_size": 23118
+}

@@ -1,0 +1,14 @@
+#!/data/data/com.termux/files/usr/bin/sh
+set -eu
+ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+BIN="$ROOT/build/gpvm-native"
+if ! command -v clang >/dev/null 2>&1; then
+    echo "gpvmn: Clang não encontrado no Termux." >&2
+    exit 127
+fi
+mkdir -p "$ROOT/build"
+if [ ! -x "$BIN" ] || [ "$ROOT/gpvm_native.c" -nt "$BIN" ]; then
+    echo "gpvmn: compilando runtime C nativo..." >&2
+    clang -std=c11 -O2 -Wall -Wextra "$ROOT/gpvm_native.c" -lz -lm -o "$BIN"
+fi
+exec "$BIN" "$@"

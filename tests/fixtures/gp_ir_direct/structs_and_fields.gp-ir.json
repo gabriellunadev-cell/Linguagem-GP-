@@ -1,0 +1,92 @@
+{
+  "format": "GP-IR",
+  "ir_version": 1,
+  "version": "0.4",
+  "main": [
+    {
+      "op": "CONST",
+      "args": [
+        "Ana"
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        37
+      ]
+    },
+    {
+      "op": "BUILD_STRUCT",
+      "args": [
+        "Pessoa",
+        [
+          [
+            "nome",
+            "texto"
+          ],
+          [
+            "idade",
+            "numero"
+          ]
+        ]
+      ]
+    },
+    {
+      "op": "DECLARE",
+      "args": [
+        "pessoa",
+        "Pessoa",
+        null
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "pessoa"
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        38
+      ]
+    },
+    {
+      "op": "SET_FIELD",
+      "args": [
+        "idade"
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "pessoa"
+      ]
+    },
+    {
+      "op": "GET_FIELD",
+      "args": [
+        "nome"
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "pessoa"
+      ]
+    },
+    {
+      "op": "GET_FIELD",
+      "args": [
+        "idade"
+      ]
+    },
+    {
+      "op": "PRINT",
+      "args": [
+        2
+      ]
+    }
+  ],
+  "functions": {}
+}

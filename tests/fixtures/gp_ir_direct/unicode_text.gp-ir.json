@@ -1,0 +1,47 @@
+{
+  "format": "GP-IR",
+  "ir_version": 1,
+  "version": "0.4",
+  "main": [
+    {
+      "op": "CONST",
+      "args": [
+        "Olá, GP"
+      ]
+    },
+    {
+      "op": "DECLARE",
+      "args": [
+        "saudacao",
+        "texto",
+        null
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "saudacao"
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "saudacao"
+      ]
+    },
+    {
+      "op": "CALL",
+      "args": [
+        "tamanho",
+        1
+      ]
+    },
+    {
+      "op": "PRINT",
+      "args": [
+        2
+      ]
+    }
+  ],
+  "functions": {}
+}

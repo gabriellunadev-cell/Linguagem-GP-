@@ -1,0 +1,697 @@
+{
+  "format": "GP-IR",
+  "ir_version": 1,
+  "version": "0.4",
+  "main": [
+    {
+      "op": "CONST",
+      "args": [
+        0
+      ]
+    },
+    {
+      "op": "DECLARE",
+      "args": [
+        "outer",
+        "numero",
+        null
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        0
+      ]
+    },
+    {
+      "op": "DECLARE",
+      "args": [
+        "total",
+        "numero",
+        null
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        0
+      ]
+    },
+    {
+      "op": "DECLARE",
+      "args": [
+        "inner",
+        "numero",
+        null
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "outer"
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        3
+      ]
+    },
+    {
+      "op": "LT",
+      "args": []
+    },
+    {
+      "op": "JUMP_IF_FALSE",
+      "args": [
+        43
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "outer"
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        1
+      ]
+    },
+    {
+      "op": "ADD",
+      "args": []
+    },
+    {
+      "op": "STORE",
+      "args": [
+        "outer"
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        0
+      ]
+    },
+    {
+      "op": "STORE",
+      "args": [
+        "inner"
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "inner"
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        5
+      ]
+    },
+    {
+      "op": "LT",
+      "args": []
+    },
+    {
+      "op": "JUMP_IF_FALSE",
+      "args": [
+        42
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "inner"
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        1
+      ]
+    },
+    {
+      "op": "ADD",
+      "args": []
+    },
+    {
+      "op": "STORE",
+      "args": [
+        "inner"
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "inner"
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        2
+      ]
+    },
+    {
+      "op": "EQ",
+      "args": []
+    },
+    {
+      "op": "JUMP_IF_FALSE",
+      "args": [
+        30
+      ]
+    },
+    {
+      "op": "JUMP",
+      "args": [
+        16
+      ]
+    },
+    {
+      "op": "JUMP",
+      "args": [
+        36
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "total"
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "outer"
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "inner"
+      ]
+    },
+    {
+      "op": "MUL",
+      "args": []
+    },
+    {
+      "op": "ADD",
+      "args": []
+    },
+    {
+      "op": "STORE",
+      "args": [
+        "total"
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "inner"
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        4
+      ]
+    },
+    {
+      "op": "EQ",
+      "args": []
+    },
+    {
+      "op": "JUMP_IF_FALSE",
+      "args": [
+        41
+      ]
+    },
+    {
+      "op": "JUMP",
+      "args": [
+        42
+      ]
+    },
+    {
+      "op": "JUMP",
+      "args": [
+        16
+      ]
+    },
+    {
+      "op": "JUMP",
+      "args": [
+        6
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        0
+      ]
+    },
+    {
+      "op": "DECLARE",
+      "args": [
+        "for_total",
+        "numero",
+        null
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        0
+      ]
+    },
+    {
+      "op": "DECLARE",
+      "args": [
+        "i",
+        "numero",
+        null
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "i"
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        7
+      ]
+    },
+    {
+      "op": "LT",
+      "args": []
+    },
+    {
+      "op": "JUMP_IF_FALSE",
+      "args": [
+        81
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "i"
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        2
+      ]
+    },
+    {
+      "op": "EQ",
+      "args": []
+    },
+    {
+      "op": "JUMP_IF_FALSE",
+      "args": [
+        56
+      ]
+    },
+    {
+      "op": "JUMP",
+      "args": [
+        76
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "i"
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        5
+      ]
+    },
+    {
+      "op": "EQ",
+      "args": []
+    },
+    {
+      "op": "JUMP_IF_FALSE",
+      "args": [
+        61
+      ]
+    },
+    {
+      "op": "JUMP",
+      "args": [
+        81
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "i"
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        3
+      ]
+    },
+    {
+      "op": "EQ",
+      "args": []
+    },
+    {
+      "op": "JUMP_IF_FALSE",
+      "args": [
+        72
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "for_total"
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "i"
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        2
+      ]
+    },
+    {
+      "op": "MUL",
+      "args": []
+    },
+    {
+      "op": "ADD",
+      "args": []
+    },
+    {
+      "op": "STORE",
+      "args": [
+        "for_total"
+      ]
+    },
+    {
+      "op": "JUMP",
+      "args": [
+        76
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "for_total"
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "i"
+      ]
+    },
+    {
+      "op": "ADD",
+      "args": []
+    },
+    {
+      "op": "STORE",
+      "args": [
+        "for_total"
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "i"
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        1
+      ]
+    },
+    {
+      "op": "ADD",
+      "args": []
+    },
+    {
+      "op": "STORE",
+      "args": [
+        "i"
+      ]
+    },
+    {
+      "op": "JUMP",
+      "args": [
+        47
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "total"
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "outer"
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "for_total"
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        8
+      ]
+    },
+    {
+      "op": "CALL",
+      "args": [
+        "somar_com_controle",
+        1
+      ]
+    },
+    {
+      "op": "PRINT",
+      "args": [
+        4
+      ]
+    }
+  ],
+  "functions": {
+    "somar_com_controle": {
+      "return_type": "numero",
+      "parameters": [
+        [
+          "numero",
+          "limite"
+        ]
+      ],
+      "code": [
+        {
+          "op": "CONST",
+          "args": [
+            0
+          ]
+        },
+        {
+          "op": "DECLARE",
+          "args": [
+            "cursor",
+            "numero",
+            null
+          ]
+        },
+        {
+          "op": "CONST",
+          "args": [
+            0
+          ]
+        },
+        {
+          "op": "DECLARE",
+          "args": [
+            "soma",
+            "numero",
+            null
+          ]
+        },
+        {
+          "op": "LOAD",
+          "args": [
+            "cursor"
+          ]
+        },
+        {
+          "op": "LOAD",
+          "args": [
+            "limite"
+          ]
+        },
+        {
+          "op": "LT",
+          "args": []
+        },
+        {
+          "op": "JUMP_IF_FALSE",
+          "args": [
+            27
+          ]
+        },
+        {
+          "op": "LOAD",
+          "args": [
+            "cursor"
+          ]
+        },
+        {
+          "op": "CONST",
+          "args": [
+            1
+          ]
+        },
+        {
+          "op": "ADD",
+          "args": []
+        },
+        {
+          "op": "STORE",
+          "args": [
+            "cursor"
+          ]
+        },
+        {
+          "op": "LOAD",
+          "args": [
+            "cursor"
+          ]
+        },
+        {
+          "op": "CONST",
+          "args": [
+            2
+          ]
+        },
+        {
+          "op": "EQ",
+          "args": []
+        },
+        {
+          "op": "JUMP_IF_FALSE",
+          "args": [
+            17
+          ]
+        },
+        {
+          "op": "JUMP",
+          "args": [
+            4
+          ]
+        },
+        {
+          "op": "LOAD",
+          "args": [
+            "cursor"
+          ]
+        },
+        {
+          "op": "CONST",
+          "args": [
+            5
+          ]
+        },
+        {
+          "op": "EQ",
+          "args": []
+        },
+        {
+          "op": "JUMP_IF_FALSE",
+          "args": [
+            22
+          ]
+        },
+        {
+          "op": "JUMP",
+          "args": [
+            27
+          ]
+        },
+        {
+          "op": "LOAD",
+          "args": [
+            "soma"
+          ]
+        },
+        {
+          "op": "LOAD",
+          "args": [
+            "cursor"
+          ]
+        },
+        {
+          "op": "ADD",
+          "args": []
+        },
+        {
+          "op": "STORE",
+          "args": [
+            "soma"
+          ]
+        },
+        {
+          "op": "JUMP",
+          "args": [
+            4
+          ]
+        },
+        {
+          "op": "LOAD",
+          "args": [
+            "soma"
+          ]
+        },
+        {
+          "op": "RETURN",
+          "args": []
+        },
+        {
+          "op": "CONST",
+          "args": [
+            null
+          ]
+        },
+        {
+          "op": "RETURN",
+          "args": []
+        }
+      ]
+    }
+  }
+}

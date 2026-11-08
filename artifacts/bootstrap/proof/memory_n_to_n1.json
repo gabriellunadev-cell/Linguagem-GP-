@@ -1,0 +1,17 @@
+{
+  "status": "ok",
+  "limit_bytes": 268435456,
+  "total_heap_peak_bytes": 66584931,
+  "total_heap_live_bytes": 37869550,
+  "native_peak_bytes": 29406127,
+  "native_live_bytes": 28172846,
+  "managed_peak_bytes": 37710194,
+  "managed_live_bytes": 9696704,
+  "managed_payload_peak_bytes": 5204693,
+  "managed_payload_live_bytes": 2722304,
+  "stack_peak_bytes": 76832,
+  "stack_live_bytes": 0,
+  "process_rss_bytes": 83324928,
+  "process_peak_rss_bytes": 96002048,
+  "process_memory_source": "procfs VmRSS + getrusage ru_maxrss"
+}

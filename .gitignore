@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+*.backup
+.venv/
+.pytest_cache/
+*.gbc
+/build/
+*.native.c
+# Versioned GP frontend bootstrap artifact
+!artifacts/
+!artifacts/bootstrap/
+!artifacts/bootstrap/*.gbc
+!artifacts/bootstrap/proof/
+!artifacts/bootstrap/proof/*.gbc
+
+# Runtime-generated frontend scratch files
+linguagem/.gp_selfhosted_*

@@ -1,0 +1,124 @@
+{
+  "format": "GP-IR",
+  "ir_version": 1,
+  "version": "0.4",
+  "main": [
+    {
+      "op": "CONST",
+      "args": [
+        5
+      ]
+    },
+    {
+      "op": "CALL",
+      "args": [
+        "fatorial",
+        1
+      ]
+    },
+    {
+      "op": "PRINT",
+      "args": [
+        1
+      ]
+    }
+  ],
+  "functions": {
+    "fatorial": {
+      "return_type": "numero",
+      "parameters": [
+        [
+          "numero",
+          "n"
+        ]
+      ],
+      "code": [
+        {
+          "op": "LOAD",
+          "args": [
+            "n"
+          ]
+        },
+        {
+          "op": "CONST",
+          "args": [
+            1
+          ]
+        },
+        {
+          "op": "LE",
+          "args": []
+        },
+        {
+          "op": "JUMP_IF_FALSE",
+          "args": [
+            7
+          ]
+        },
+        {
+          "op": "CONST",
+          "args": [
+            1
+          ]
+        },
+        {
+          "op": "RETURN",
+          "args": []
+        },
+        {
+          "op": "JUMP",
+          "args": [
+            14
+          ]
+        },
+        {
+          "op": "LOAD",
+          "args": [
+            "n"
+          ]
+        },
+        {
+          "op": "LOAD",
+          "args": [
+            "n"
+          ]
+        },
+        {
+          "op": "CONST",
+          "args": [
+            1
+          ]
+        },
+        {
+          "op": "SUB",
+          "args": []
+        },
+        {
+          "op": "CALL",
+          "args": [
+            "fatorial",
+            1
+          ]
+        },
+        {
+          "op": "MUL",
+          "args": []
+        },
+        {
+          "op": "RETURN",
+          "args": []
+        },
+        {
+          "op": "CONST",
+          "args": [
+            null
+          ]
+        },
+        {
+          "op": "RETURN",
+          "args": []
+        }
+      ]
+    }
+  }
+}

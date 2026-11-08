@@ -1,6 +1,6 @@
 # GP — Gabriel Programming
 
-> O mantenedor confirmou o marco 0.8.52 concluído na sessão anterior. Esta cópia de trabalho ainda registra 0.8.51 como última etapa numerada, por divergência de sincronização dos documentos; a continuidade pós-marco recebeu hardening do alocador e do I/O nativo, 231 testes, corpus 6/6, UBSan 64 sem divergências e bootstrap N → N+1 → N+2 aprovado. A próxima numeração fica pendente de sincronização, sem declarar autohospedagem integral. Consulte ENGINEERING_STATUS.md e docs/RELEASE_CRITERIA_1.0.0.md.
+> GP 0.8.52 validada no Termux/Android ARM64: 245 testes (238 da linguagem + 7 do GP Bridge), corpus diferencial 6/6, fuzz 64 sem divergências e bootstrap N→N+1→N+2 reproduzível (N+1 == N+2, SHA-256 registrado). A biblioteca inicial inclui `unir_textos(lista texto)` e serialização GP-IR em lote. A autohospedagem integral ainda é um objetivo, não um recurso concluído. Consulte ENGINEERING_STATUS.md e docs/RELEASE_CRITERIA_1.0.0.md.
 
 Linguagem proprietária do projeto Gabriel Luna, com prioridade de desenvolvimento e execução no Android ARM64.
 
@@ -13,13 +13,15 @@ O CLI separa a VM que executa o frontend auto-hospedado (`--runner-vm`) da VM qu
 - [GP-IR v1](docs/GP_IR_SPEC.md): formato intermediário, validação e versionamento independente.
 - [Bytecode v2](docs/BYTECODE_V2_SPEC.md): contêiner binário e envelope.
 - [Critérios da versão 1.0.0](docs/RELEASE_CRITERIA_1.0.0.md): requisitos verificáveis para estabilização e release.
+- [Plano de autossuficiência](docs/SELF_HOSTING.md): diagnóstico e etapas para eliminar a dependência de Python do toolchain.
 
 A GP permanece em versão 0.x enquanto os portões de estabilidade do documento 1.0.0 não forem satisfeitos.
 - [GP Host Input](docs/GP_HOST_INPUT_SPEC.md): entrada textual explícita fornecida pelo host.
+- [Biblioteca padrão](docs/GP_STANDARD_LIBRARY.md): contratos iniciais, incluindo `unir_textos`.
 
 ## Estado atual
 
-**GP Core 0.4 + toolchain nativo experimental (base documentada 0.8.51; marco 0.8.52 informado como concluído; hardening pós-marco validado; autohospedagem integral ainda pendente).**
+**GP Core 0.4 + toolchain nativo experimental (ciclo 0.8.52: 238 testes aprovados; `unir_textos` e serialização em lote implementados; prova de bootstrap otimizada em validação; autohospedagem integral ainda pendente).**
 
 Existem três caminhos no projeto:
 
@@ -34,7 +36,7 @@ Existem três caminhos no projeto:
 - Tipos `numero`, `texto`, `logico` e `lista`.
 - Funções, parâmetros, retorno, recursividade e escopos.
 - Condicionais, laços, arrays, estruturas e módulos locais.
-- Biblioteca padrão inicial.
+- Biblioteca padrão inicial, incluindo `unir_textos(lista texto)` para montagem eficiente de texto.
 
 ### Recursos implementados no compilador de bytecode 0.4
 
@@ -79,6 +81,17 @@ Executar a sequência reproduzível de checks, regeneração do corpus, suíte d
 
 Os componentes também podem ser executados separadamente com make check, make test, make differential-corpus e make fuzz-bytecode.
 
+## Integração com o GP Programinha
+
+O editor visual fica em um repositório separado: [GP Programinha](https://github.com/gabriellunadev-cell/Gp-ai-programacao). Para compilar e executar código GP a partir dele, inicie o serviço local neste repositório:
+
+    cd ~/gabriel-luna-gp
+    make bridge
+
+O serviço fica restrito a 127.0.0.1:8765, usa a CLI oficial do compilador, cria um workspace temporário por chamada e não expõe shell ou leitura arbitrária de arquivos. A API, os limites e os controles de CORS estão documentados em [docs/GP_BRIDGE.md](docs/GP_BRIDGE.md). O contrato é validado por tests/test_ide_bridge.py e incluído em make validate.
+
+A biblioteca padrão é mantida neste mesmo repositório, com contratos em [docs/GP_STANDARD_LIBRARY.md](docs/GP_STANDARD_LIBRARY.md) e índice em [biblioteca/README.md](biblioteca/README.md).
+
 ## Executar no Termux
 
     cd ~/gabriel-luna-gp
@@ -90,6 +103,14 @@ Interpretar o exemplo completo do bootstrap:
 Compilar e executar bytecode pelo bootstrap:
 
     ./bin/gpc exemplos/bytecode_basico.gp --run
+
+Exercitar a biblioteca padrão inicial (`tamanho`, `adicionar`, `remover` e `unir_textos`) nos três runtimes:
+
+    ./bin/gp exemplos/biblioteca_padrao.gp
+    ./bin/gpc exemplos/biblioteca_padrao.gp --run
+    ./bin/gpc exemplos/biblioteca_padrao.gp --self-hosted --runner-vm native --run --run-vm native
+
+Contrato e matriz de disponibilidade: [docs/GP_STANDARD_LIBRARY.md](docs/GP_STANDARD_LIBRARY.md).
 
 Compilar e executar pelo backend auto-hospedado experimental:
 

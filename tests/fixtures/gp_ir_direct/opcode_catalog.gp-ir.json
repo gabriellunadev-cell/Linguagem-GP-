@@ -1,0 +1,806 @@
+{
+  "format": "GP-IR",
+  "ir_version": 1,
+  "version": "0.4",
+  "main": [
+    {
+      "op": "CONST",
+      "args": [
+        8
+      ]
+    },
+    {
+      "op": "DECLARE",
+      "args": [
+        "a",
+        "numero",
+        null
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        3
+      ]
+    },
+    {
+      "op": "DECLARE",
+      "args": [
+        "b",
+        "numero",
+        null
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "a"
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "b"
+      ]
+    },
+    {
+      "op": "ADD",
+      "args": []
+    },
+    {
+      "op": "DECLARE",
+      "args": [
+        "soma",
+        "numero",
+        null
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "a"
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "b"
+      ]
+    },
+    {
+      "op": "SUB",
+      "args": []
+    },
+    {
+      "op": "DECLARE",
+      "args": [
+        "subtracao",
+        "numero",
+        null
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "a"
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "b"
+      ]
+    },
+    {
+      "op": "MUL",
+      "args": []
+    },
+    {
+      "op": "DECLARE",
+      "args": [
+        "produto",
+        "numero",
+        null
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "a"
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "b"
+      ]
+    },
+    {
+      "op": "DIV",
+      "args": []
+    },
+    {
+      "op": "DECLARE",
+      "args": [
+        "divisao",
+        "numero",
+        null
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "a"
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "b"
+      ]
+    },
+    {
+      "op": "MOD",
+      "args": []
+    },
+    {
+      "op": "DECLARE",
+      "args": [
+        "resto",
+        "numero",
+        null
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "a"
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "b"
+      ]
+    },
+    {
+      "op": "EQ",
+      "args": []
+    },
+    {
+      "op": "DECLARE",
+      "args": [
+        "igual",
+        "logico",
+        null
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "a"
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "b"
+      ]
+    },
+    {
+      "op": "NE",
+      "args": []
+    },
+    {
+      "op": "DECLARE",
+      "args": [
+        "diferente",
+        "logico",
+        null
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "a"
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "b"
+      ]
+    },
+    {
+      "op": "GT",
+      "args": []
+    },
+    {
+      "op": "DECLARE",
+      "args": [
+        "maior",
+        "logico",
+        null
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "a"
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "b"
+      ]
+    },
+    {
+      "op": "LT",
+      "args": []
+    },
+    {
+      "op": "DECLARE",
+      "args": [
+        "menor",
+        "logico",
+        null
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "a"
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "b"
+      ]
+    },
+    {
+      "op": "GE",
+      "args": []
+    },
+    {
+      "op": "DECLARE",
+      "args": [
+        "maior_igual",
+        "logico",
+        null
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "a"
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "b"
+      ]
+    },
+    {
+      "op": "LE",
+      "args": []
+    },
+    {
+      "op": "DECLARE",
+      "args": [
+        "menor_igual",
+        "logico",
+        null
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        true
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        false
+      ]
+    },
+    {
+      "op": "AND",
+      "args": []
+    },
+    {
+      "op": "DECLARE",
+      "args": [
+        "conjuncao",
+        "logico",
+        null
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        true
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        false
+      ]
+    },
+    {
+      "op": "OR",
+      "args": []
+    },
+    {
+      "op": "DECLARE",
+      "args": [
+        "disjuncao",
+        "logico",
+        null
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        false
+      ]
+    },
+    {
+      "op": "NOT",
+      "args": []
+    },
+    {
+      "op": "DECLARE",
+      "args": [
+        "negacao",
+        "logico",
+        null
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "a"
+      ]
+    },
+    {
+      "op": "NEG",
+      "args": []
+    },
+    {
+      "op": "DECLARE",
+      "args": [
+        "negativo",
+        "numero",
+        null
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        1
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        2
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        3
+      ]
+    },
+    {
+      "op": "BUILD_ARRAY",
+      "args": [
+        3
+      ]
+    },
+    {
+      "op": "MAKE_TYPED_ARRAY",
+      "args": [
+        "numero"
+      ]
+    },
+    {
+      "op": "DECLARE",
+      "args": [
+        "numeros",
+        "lista",
+        "numero"
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "numeros"
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        1
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        9
+      ]
+    },
+    {
+      "op": "SET_INDEX",
+      "args": []
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "numeros"
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        1
+      ]
+    },
+    {
+      "op": "GET_INDEX",
+      "args": []
+    },
+    {
+      "op": "DECLARE",
+      "args": [
+        "item",
+        "numero",
+        null
+      ]
+    },
+    {
+      "op": "BUILD_ARRAY",
+      "args": [
+        0
+      ]
+    },
+    {
+      "op": "MAKE_TYPED_ARRAY",
+      "args": [
+        "texto"
+      ]
+    },
+    {
+      "op": "DECLARE",
+      "args": [
+        "vazia",
+        "lista",
+        "texto"
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        "GP"
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        8
+      ]
+    },
+    {
+      "op": "BUILD_STRUCT",
+      "args": [
+        "Pessoa",
+        [
+          [
+            "nome",
+            "texto"
+          ],
+          [
+            "idade",
+            "numero"
+          ]
+        ]
+      ]
+    },
+    {
+      "op": "DECLARE",
+      "args": [
+        "pessoa",
+        "Pessoa",
+        null
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "pessoa"
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "pessoa"
+      ]
+    },
+    {
+      "op": "GET_FIELD",
+      "args": [
+        "idade"
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        1
+      ]
+    },
+    {
+      "op": "ADD",
+      "args": []
+    },
+    {
+      "op": "SET_FIELD",
+      "args": [
+        "idade"
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "pessoa"
+      ]
+    },
+    {
+      "op": "GET_FIELD",
+      "args": [
+        "nome"
+      ]
+    },
+    {
+      "op": "DECLARE",
+      "args": [
+        "nome",
+        "texto",
+        null
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        5
+      ]
+    },
+    {
+      "op": "CALL",
+      "args": [
+        "identidade",
+        1
+      ]
+    },
+    {
+      "op": "DECLARE",
+      "args": [
+        "resultado",
+        "numero",
+        null
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        0
+      ]
+    },
+    {
+      "op": "DECLARE",
+      "args": [
+        "cursor",
+        "numero",
+        null
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "cursor"
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        1
+      ]
+    },
+    {
+      "op": "LT",
+      "args": []
+    },
+    {
+      "op": "JUMP_IF_FALSE",
+      "args": [
+        107
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        1
+      ]
+    },
+    {
+      "op": "STORE",
+      "args": [
+        "cursor"
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        2
+      ]
+    },
+    {
+      "op": "CALL",
+      "args": [
+        "identidade",
+        1
+      ]
+    },
+    {
+      "op": "POP",
+      "args": []
+    },
+    {
+      "op": "JUMP",
+      "args": [
+        97
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "soma"
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "subtracao"
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "produto"
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "resto"
+      ]
+    },
+    {
+      "op": "PRINT",
+      "args": [
+        4
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "item"
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "numeros"
+      ]
+    },
+    {
+      "op": "CALL",
+      "args": [
+        "tamanho",
+        1
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "vazia"
+      ]
+    },
+    {
+      "op": "CALL",
+      "args": [
+        "tamanho",
+        1
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "pessoa"
+      ]
+    },
+    {
+      "op": "GET_FIELD",
+      "args": [
+        "nome"
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "nome"
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "pessoa"
+      ]
+    },
+    {
+      "op": "GET_FIELD",
+      "args": [
+        "idade"
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "resultado"
+      ]
+    },
+    {
+      "op": "PRINT",
+      "args": [
+        7
+      ]
+    }
+  ],
+  "functions": {
+    "identidade": {
+      "return_type": "numero",
+      "parameters": [
+        [
+          "numero",
+          "valor"
+        ]
+      ],
+      "code": [
+        {
+          "op": "LOAD",
+          "args": [
+            "valor"
+          ]
+        },
+        {
+          "op": "RETURN",
+          "args": []
+        },
+        {
+          "op": "CONST",
+          "args": [
+            null
+          ]
+        },
+        {
+          "op": "RETURN",
+          "args": []
+        }
+      ]
+    }
+  }
+}

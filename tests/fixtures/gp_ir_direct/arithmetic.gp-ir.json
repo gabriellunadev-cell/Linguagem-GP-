@@ -1,0 +1,90 @@
+{
+  "format": "GP-IR",
+  "ir_version": 1,
+  "version": "0.4",
+  "main": [
+    {
+      "op": "CONST",
+      "args": [
+        8
+      ]
+    },
+    {
+      "op": "DECLARE",
+      "args": [
+        "a",
+        "numero",
+        null
+      ]
+    },
+    {
+      "op": "CONST",
+      "args": [
+        3
+      ]
+    },
+    {
+      "op": "DECLARE",
+      "args": [
+        "b",
+        "numero",
+        null
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "a"
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "b"
+      ]
+    },
+    {
+      "op": "ADD",
+      "args": []
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "a"
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "b"
+      ]
+    },
+    {
+      "op": "MUL",
+      "args": []
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "a"
+      ]
+    },
+    {
+      "op": "LOAD",
+      "args": [
+        "b"
+      ]
+    },
+    {
+      "op": "SUB",
+      "args": []
+    },
+    {
+      "op": "PRINT",
+      "args": [
+        3
+      ]
+    }
+  ],
+  "functions": {}
+}

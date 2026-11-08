@@ -1,0 +1,30 @@
+
+=== NATIVE FRONTEND RUN ===
+returncode=0
+[GP Native VM: 72464879 instruções]
+[GP GC: 1053 ciclos, 5981870 objetos liberados, 2441.38 MiB recuperados]
+[GP GC: 6090845 objetos gerenciados alocados]
+[GP memória: pico 63.50 MiB / limite 256 MiB (contabilizado pelo alocador)]
+[GP pilha: pico agregado 0.07 MiB em buffers de operandos]
+[GP GC tipos: strings=75402/1294880B arrays=11505/368160B structs=22068/1059264B]
+[GP heap bins: <=16 bytes=10705905 allocs=272881]
+[GP heap bins: 17-64 bytes=9854535 allocs=133000]
+[GP heap bins: 65-256 bytes=6120533 allocs=37571]
+[GP heap bins: 257-1024 bytes=3476800 allocs=10760]
+[GP heap bins: 1025-4096 bytes=29696 allocs=16]
+[GP heap bins: >4096 bytes=7682081 allocs=20]
+
+=== NATIVE FRONTEND RUN ===
+returncode=0
+[GP Native VM: 72464879 instruções]
+[GP GC: 1053 ciclos, 5981870 objetos liberados, 2441.38 MiB recuperados]
+[GP GC: 6090845 objetos gerenciados alocados]
+[GP memória: pico 63.68 MiB / limite 256 MiB (contabilizado pelo alocador)]
+[GP pilha: pico agregado 0.07 MiB em buffers de operandos]
+[GP GC tipos: strings=75402/1294880B arrays=11505/368160B structs=22068/1059264B]
+[GP heap bins: <=16 bytes=10898780 allocs=275470]
+[GP heap bins: 17-64 bytes=9854535 allocs=133000]
+[GP heap bins: 65-256 bytes=6120533 allocs=37571]
+[GP heap bins: 257-1024 bytes=3476800 allocs=10760]
+[GP heap bins: 1025-4096 bytes=29696 allocs=16]
+[GP heap bins: >4096 bytes=7682151 allocs=20]
