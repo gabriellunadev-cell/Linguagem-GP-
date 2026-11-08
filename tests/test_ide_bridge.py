@@ -140,7 +140,7 @@ class GPBridgeTests(unittest.TestCase):
             validate_project_payload({
                 "entryFile": "principal.gp",
                 "files": [
-                    {"path": "principal.gp", "source": 'usar "lib\\math.gp" como math\nmostrar(1)'},
+                    {"path": "principal.gp", "source": 'usar "lib\\\\math.gp" como math\nmostrar(1)'},
                 ],
             })
 
