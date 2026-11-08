@@ -227,6 +227,29 @@ class GPBridgeHTTPTests(unittest.TestCase):
             )
             self.assertIn("POST", response.headers.get("Access-Control-Allow-Methods", ""))
 
+    def test_project_compile_endpoint_over_real_http(self):
+        status, body = self.request_json("POST", "/api/compile-project", {
+            "entryFile": "app/principal.gp",
+            "files": [
+                {
+                    "path": "app/principal.gp",
+                    "source": 'usar "lib/matematica.gp" como math\nmostrar(math.somar(20, 22))',
+                },
+                {
+                    "path": "app/lib/matematica.gp",
+                    "source": (
+                        "funcao somar(numero a, numero b) -> numero {\n"
+                        "    retornar a + b\n"
+                        "}\n"
+                    ),
+                },
+            ],
+        })
+        self.assertEqual(status, 200, body)
+        self.assertTrue(body["ok"], body["stderr"])
+        self.assertEqual(body["exitCode"], 0)
+        self.assertIn("bytecode binário v2", body["stdout"])
+
     def test_project_run_endpoint_over_real_http(self):
         status, body = self.request_json("POST", "/api/run-project", {
             "entryFile": "app/principal.gp",
