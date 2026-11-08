@@ -213,6 +213,20 @@ class GPBridgeHTTPTests(unittest.TestCase):
         self.assertTrue(body["projectApi"])
         self.assertEqual(body["bridgeVersion"], "0.2")
 
+    def test_vite_dev_origin_preflight_over_real_http(self):
+        request = urllib.request.Request(
+            self.base_url + "/api/compile-project",
+            method="OPTIONS",
+            headers={"Origin": "http://localhost:5173"},
+        )
+        with urllib.request.urlopen(request, timeout=8) as response:
+            self.assertEqual(response.status, 204)
+            self.assertEqual(
+                response.headers.get("Access-Control-Allow-Origin"),
+                "http://localhost:5173",
+            )
+            self.assertIn("POST", response.headers.get("Access-Control-Allow-Methods", ""))
+
     def test_project_run_endpoint_over_real_http(self):
         status, body = self.request_json("POST", "/api/run-project", {
             "entryFile": "app/principal.gp",
