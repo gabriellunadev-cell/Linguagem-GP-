@@ -3,6 +3,10 @@
  * Loads GP bytecode v2 directly: GGPC header + zlib JSON IR.
  * Build: clang -std=c11 -O2 gpvm_native.c -lz -o gpvm-native
  */
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200809L
+#endif
+
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>

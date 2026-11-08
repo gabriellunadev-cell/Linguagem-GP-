@@ -1,14 +1,13 @@
 # GP Bytecode v2 — golden fixtures
 
-These binary files are reference artifacts produced by the current bootstrap compiler.
-They are deliberately committed as test inputs, not regenerated during test execution.
+The exact GP bytecode v2 snapshots are versioned as Base64 text files (`*.gbc.b64`).
+This preserves the binary test inputs in Git even though the repository ignores generated `*.gbc` files.
 
-For each fixture, the regression suite:
-1. verifies the binary envelope through the Python decoder;
-2. executes the exact same .gbc bytes in GPVirtualMachine;
-3. executes the exact same .gbc bytes in the native ARM64 VM;
-4. compares stdout and exit status against the expected behavior recorded in the test.
+Before the test suite runs, `make test` invokes `ferramentas/materializar_fixtures_bytecode.py`.
+The script decodes each snapshot, verifies the SHA-256 and exact byte length against `SHA256SUMS`,
+and only then writes the `.gbc` file used by the Python and native VM tests.
 
-The corresponding .gp source files are kept beside the binary artifacts to make the
-fixture provenance reproducible. SHA256SUMS records the exact binary contents.
-A deliberate compiler/format change must review and update the fixture corpus explicitly.
+The binary files are exact golden inputs: tests do not regenerate them from `.gp` source at runtime.
+The corresponding GP sources remain alongside the snapshots as provenance and review material.
+A deliberate compiler or format change must explicitly review the GP source, snapshot, hash manifest
+and expected VM output together.

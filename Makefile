@@ -5,10 +5,13 @@ FUZZ_SEED ?= 0x47505632
 FUZZ_TIMEOUT ?= 2
 FUZZ_REPORT ?= build/fuzz-reports/latest.json
 
-.PHONY: test check validate bootstrap-runner bootstrap-proof run compile native native-vm native-vm-run fuzz-bytecode differential-corpus bridge
+.PHONY: test check validate bootstrap-runner bootstrap-proof run compile native native-vm native-vm-run fuzz-bytecode differential-corpus bridge bytecode-fixtures
 
-test:
+test: bytecode-fixtures
 	$(PYTHON) -m unittest discover -s tests -v
+
+bytecode-fixtures:
+	$(PYTHON) ferramentas/materializar_fixtures_bytecode.py
 
 check:
 	$(PYTHON) -m py_compile gp.py gp_compile.py gp_vm.py gp_native.py gp_ide_server.py gpcompiler/*.py tests/*.py ferramentas/*.py
