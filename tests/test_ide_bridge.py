@@ -1,6 +1,12 @@
+import json
+import threading
 import unittest
+import urllib.error
+import urllib.request
 
 from gp_ide_server import (
+    GPBridgeHandler,
+    LoopbackHTTPServer,
     BridgeError,
     DEFAULT_HOST,
     MAX_REQUEST_BYTES,
@@ -162,6 +168,89 @@ class GPBridgeTests(unittest.TestCase):
                     {"path": "app/lib/base.gp", "source": 'usar "../../../escape.gp" como escape\nfuncao ok() -> numero { retornar 1 }'},
                 ],
             })
+
+
+class GPBridgeHTTPTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.server = LoopbackHTTPServer(("127.0.0.1", 0), GPBridgeHandler)
+        cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
+        cls.thread.start()
+        host, port = cls.server.server_address
+        cls.base_url = f"http://{host}:{port}"
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.server.shutdown()
+        cls.server.server_close()
+        cls.thread.join(timeout=2)
+
+    def request_json(self, method, path, payload=None):
+        data = None if payload is None else json.dumps(payload).encode("utf-8")
+        request = urllib.request.Request(
+            self.base_url + path,
+            data=data,
+            method=method,
+            headers={"Content-Type": "application/json"} if data is not None else {},
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=8) as response:
+                return response.status, json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as error:
+            body = json.loads(error.read().decode("utf-8"))
+            return error.code, body
+
+    def test_health_endpoint_over_real_http(self):
+        status, body = self.request_json("GET", "/api/health")
+        self.assertEqual(status, 200)
+        self.assertTrue(body["ok"])
+        self.assertTrue(body["projectApi"])
+        self.assertEqual(body["bridgeVersion"], "0.2")
+
+    def test_project_run_endpoint_over_real_http(self):
+        status, body = self.request_json("POST", "/api/run-project", {
+            "entryFile": "app/principal.gp",
+            "files": [
+                {
+                    "path": "app/principal.gp",
+                    "source": 'usar "lib/matematica.gp" como math\nmostrar("HTTP:", math.somar(19, 23))',
+                },
+                {
+                    "path": "app/lib/matematica.gp",
+                    "source": (
+                        "funcao somar(numero a, numero b) -> numero {\n"
+                        "    retornar a + b\n"
+                        "}\n"
+                    ),
+                },
+            ],
+        })
+        self.assertEqual(status, 200, body)
+        self.assertTrue(body["ok"], body["stderr"])
+        self.assertIn("HTTP: 42", body["stdout"])
+
+    def test_project_endpoint_rejects_outside_import_over_real_http(self):
+        status, body = self.request_json("POST", "/api/compile-project", {
+            "entryFile": "app/principal.gp",
+            "files": [
+                {
+                    "path": "app/principal.gp",
+                    "source": 'usar "../../escape.gp" como x\nmostrar(1)',
+                },
+            ],
+        })
+        self.assertEqual(status, 400)
+        self.assertFalse(body["ok"])
+        self.assertIn("sair do diretório", body["error"])
+
+    def test_single_file_endpoint_rejects_import_over_real_http(self):
+        status, body = self.request_json("POST", "/api/compile", {
+            "fileName": "principal.gp",
+            "source": 'usar "modulo.gp" como modulo\nmostrar(1)',
+        })
+        self.assertEqual(status, 400)
+        self.assertFalse(body["ok"])
+        self.assertIn("projeto completo", body["error"])
 
 
 if __name__ == "__main__":
