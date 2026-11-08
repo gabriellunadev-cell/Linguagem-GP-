@@ -187,8 +187,11 @@ def _run_command(
     *,
     run: bool,
     started: float,
+    timeout_seconds: float | None = None,
 ) -> dict[str, object]:
-    timeout = RUN_TIMEOUT_SECONDS if run else COMPILE_TIMEOUT_SECONDS
+    timeout = timeout_seconds if timeout_seconds is not None else (
+        RUN_TIMEOUT_SECONDS if run else COMPILE_TIMEOUT_SECONDS
+    )
     try:
         completed = subprocess.run(
             command,
@@ -250,7 +253,9 @@ def execute_source(
         ]
         if run:
             command.extend(["--run", "--run-vm", "python", "--run-max-steps", "1000000"])
-        return _run_command(command, workspace, run=run, started=started)
+        return _run_command(
+            command, workspace, run=run, started=started, timeout_seconds=timeout
+        )
 
 
 def execute_project(
