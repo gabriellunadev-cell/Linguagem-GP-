@@ -23,21 +23,5 @@ jobs:
           python-version: "3.12"
       - name: Install native build dependencies
         run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
-      - name: Generate bytecode fixture snapshots for inspection
-        run: |
-          python3 - <<'PY'
-          import base64
-          import hashlib
-          import subprocess
-          import sys
-          from pathlib import Path
-          root = Path('tests/fixtures/bytecode_v2')
-          for source in sorted(root.glob('*.gp')):
-              output = source.with_suffix('.gbc')
-              subprocess.run([sys.executable, 'gp_compile.py', str(source), '--output', str(output)], check=True)
-              data = output.read_bytes()
-              print(f'FIXTURE-BEGIN {output.name} {len(data)} {hashlib.sha256(data).hexdigest()}')
-              print(base64.b64encode(data).decode('ascii'))
-          PY
       - name: Run complete GP validation
         run: make validate
