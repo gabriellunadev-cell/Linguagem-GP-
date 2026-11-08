@@ -7,8 +7,8 @@
 - O processo do compilador recebe apenas ambiente mínimo (PATH, PYTHONPATH e flags de UTF-8), sem herdar credenciais ou variáveis arbitrárias do processo servidor.
 - A CORS local inclui Vite em `localhost:5173`/`127.0.0.1:5173`, além das portas de preview 4173/4174; o serviço continua restrito a loopback.
 - Fixtures binárias GGPC v2 passaram a ser versionadas como Base64 com hash e tamanho verificados antes da materialização, evitando depender de bytes gerados por zlib de cada sistema.
-- Testes HTTP reais cobrem health, execução modular (retorno 42), rejeição de imports externos e preflight CORS.
-- GitHub Actions (Linux x64, Python 3.12): `make validate` aprovado no commit `1c65079a90b20acf331bfcb4e12c29f3fb578612`; 263 testes, corpus diferencial 6/6 em todas as seis comparações, fuzz determinístico 64 (38 rejeições, 26 aceitos/executados, zero divergências), hashes e `git diff --check` aprovados.
+- Testes HTTP reais cobrem health, compilação de projeto modular, execução modular (retorno 42), rejeição de imports externos e preflight CORS.
+- GitHub Actions (Linux x64, Python 3.12): `make validate` aprovado no commit `895303f0552697fc1e7ff801de0952dea1399cf2`; 264 testes, corpus diferencial 6/6 em todas as seis comparações, fuzz determinístico 64 (38 rejeições, 26 aceitos/executados, zero divergências), hashes e `git diff --check` aprovados.
 - Esta integração não altera a versão do compilador: GP continua em 0.8.52. A validação registrada é no runner Linux; a verificação final no Termux/Android depende do dispositivo local.
 ## Integração GP Programinha — GP Bridge 0.1
 
