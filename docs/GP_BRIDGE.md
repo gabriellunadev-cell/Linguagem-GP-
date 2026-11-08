@@ -1,6 +1,6 @@
 # GP Bridge — serviço local de integração
 
-O GP Bridge expõe a CLI oficial do compilador para o GP Programinha. Ele não implementa uma segunda versão da linguagem: recebe uma fonte, cria um workspace temporário e invoca `gp_compile.py`.
+O GP Bridge expõe a CLI oficial do compilador para o GP Programinha. Ele não implementa uma segunda versão da linguagem: recebe código ou um projeto GP, cria um workspace temporário e invoca `gp_compile.py`.
 
 ## Iniciar
 
@@ -16,18 +16,51 @@ No Programinha, use o endereço padrão nas configurações de integração.
 
 ## Endpoints
 
-- `GET /api/health`: estado do serviço e disponibilidade do compilador.
-- `POST /api/compile`: compila a fonte e retorna stdout, stderr, código de saída e duração.
-- `POST /api/run`: compila e executa pela VM Python de referência.
+- `GET /api/health`: estado do serviço, versão do compilador, versão da Bridge e limites de projeto.
+- `POST /api/compile`: compila um único arquivo sem imports.
+- `POST /api/run`: compila e executa um único arquivo sem imports pela VM Python de referência.
+- `POST /api/compile-project`: compila o arquivo principal e todos os módulos enviados.
+- `POST /api/run-project`: compila e executa o projeto completo pela VM Python de referência.
 
-## Limites da versão inicial
+## Corpo da API de projeto
 
-- Fonte máxima: 1 MiB por chamada.
-- Nome de arquivo GP simples, sem caminhos.
-- Timeout de compilação: 20 segundos.
-- Timeout de execução: 5 segundos; limite de instruções da VM: 1.000.000.
-- Workspace temporário removido ao final da chamada.
-- CORS limitado às origens locais de desenvolvimento do Programinha por padrão. Para outra origem explicitamente controlada, configure `GP_BRIDGE_ORIGINS` com uma lista separada por vírgulas.
-- Runtime nativo, projetos com múltiplos arquivos e gestão persistente de projetos ainda não estão habilitados na API inicial.
+```json
+{
+  "entryFile": "app/principal.gp",
+  "files": [
+    {
+      "path": "app/principal.gp",
+      "source": "usar \"lib/matematica.gp\" como math\nmostrar(math.somar(19, 23))"
+    },
+    {
+      "path": "app/lib/matematica.gp",
+      "source": "funcao somar(numero a, numero b) -> numero {\n    retornar a + b\n}"
+    }
+  ]
+}
+```
 
-O serviço deve permanecer local. Não publique a porta, não faça proxy reverso para a internet e não adicione endpoints genéricos de shell ou leitura de arquivos.
+Os caminhos enviados em `files[].path` são relativos à raiz do projeto. Imports são interpretados em relação ao arquivo que os declara, conforme as regras do compilador GP. Um caminho como `../lib/base.gp` é permitido quando sua resolução permanece dentro da raiz e o arquivo correspondente está presente no projeto.
+
+## Limites e validação
+
+- Corpo HTTP máximo: 20 MiB.
+- Até 128 arquivos por projeto.
+- Até 4 MiB UTF-8 por arquivo e 16 MiB somados de fontes.
+- Timeout de compilação: 30 segundos.
+- Timeout de execução: 10 segundos; limite da VM: 1.000.000 de instruções.
+- Caminhos absolutos, segmentos de arquivo vazios, `.` e `..` em caminhos enviados, duplicidades e caminhos fora do workspace são rejeitados.
+- Imports absolutos, imports com barra invertida, imports que escapem da raiz e módulos ausentes são rejeitados antes de chamar o compilador.
+- A validação percorre também os imports dos módulos alcançáveis a partir do arquivo principal.
+- Os arquivos são criados em diretório temporário isolado e removidos ao final da chamada.
+- A API de arquivo único rejeita imports: envie o conjunto completo pelos endpoints de projeto.
+
+## Segurança operacional
+
+- O serviço escuta exclusivamente em `127.0.0.1` e valida Host e origem CORS.
+- CORS é limitado às origens locais de desenvolvimento. Para outra origem explicitamente controlada, configure `GP_BRIDGE_ORIGINS` com uma lista separada por vírgulas.
+- O compilador é iniciado com lista de argumentos, sem shell.
+- Não existem endpoints genéricos de shell, leitura arbitrária de arquivos, rede, administração ou acesso a credenciais.
+- Não publique a porta, não faça proxy reverso para a internet e não exponha o Bridge em `0.0.0.0`.
+
+A Bridge 0.2 não altera a versão da linguagem, que permanece em GP 0.8.52. A execução ainda usa a VM Python de referência; seleção do runtime nativo e depuração interativa ficam para etapas posteriores.
