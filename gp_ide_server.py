@@ -59,7 +59,8 @@ def _source_imports(source: str) -> list[tuple[str, str]] | None:
     """Return top-level imports using the official GP parser; syntax errors remain compiler diagnostics."""
     try:
         root = from_parser_tree(Parser(lex(source)).parse())
-    except GPError:
+    except (GPError, json.JSONDecodeError):
+        # Invalid source remains a compiler diagnostic; it must not become a Bridge 500.
         return None
     if getattr(root, "kind", None) != "block":
         return []
