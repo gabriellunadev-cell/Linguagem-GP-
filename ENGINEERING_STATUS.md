@@ -5,6 +5,43 @@ Ambiente: Android / Termux / ARM64
 Repositório: `$HOME/gabriel-luna-gp`
 Branch de evolução no GitHub: `feature/gp-bridge-v0.2`
 
+## Validação local no Termux — Android ARM64
+
+Data: 2026-11-08. Ambiente confirmado diretamente no dispositivo: `aarch64`, Python 3.13.13, Clang 21.1.8, Node.js 26.3.1 e npm 12.2.2.
+
+### Linguagem e Bridge
+
+- `make validate`: exit code 0; duração total 120,19 s.
+- Suíte Python: 264 testes aprovados em 91,230 s.
+- Corpus diferencial: 6/6 em cada uma das seis comparações.
+- Fuzz determinístico: 64 iterações; 38 rejeições; 26 execuções aceitas; zero divergências.
+- Snapshots binários GGPC v2 decodificados e validados por SHA-256 e tamanho.
+- Hashes do corpus GP-IR, `git diff --check`, sintaxe Python e compilação C aprovados.
+
+### GP Programinha 0.2.0
+
+- `npm ci`: 71 pacotes instalados; auditoria npm informou zero vulnerabilidades.
+- `npm run typecheck`: aprovado.
+- `npm run build`: aprovado no próprio Android ARM64; 1.578 módulos transformados.
+- Bundle: JavaScript 172,56 kB (54,76 kB gzip); CSS 13,04 kB (3,83 kB gzip).
+- O npm bloqueou um script pós-instalação do esbuild por sua política de allowScripts, mas o binário Android disponível permitiu o build Vite concluir com exit code 0.
+
+### Smoke test HTTP da integração local
+
+- `GET /api/health`: HTTP 200; GP 0.8.52, GP Bridge 0.2 e `projectApi: true`.
+- `POST /api/compile-project`: HTTP 200 para aplicação modular.
+- `POST /api/run-project`: HTTP 200; módulo somou 19 + 23 e imprimiu `Termux GP: 42`.
+- Import que tenta escapar da raiz do projeto: HTTP 400.
+- Preflight CORS Vite (`localhost:5173`): HTTP 204.
+- Origem real do PWA (`http://127.0.0.1:4174`): health e execução de projeto autorizados por CORS; saída `PWA conectado`.
+- `manifest.webmanifest` e `sw.js` servidos com HTTP 200.
+
+### Estado local dos repositórios
+
+- Linguagem: branch local `gp-bridge-v0.2`, sincronizada com `origin/feature/gp-bridge-v0.2`, commit `54a7c2d21becac1366a732778c1c8c7bf7b0732f`; working tree limpo.
+- IDE: branch local `gp-programinha-v0.2`, sincronizada com `origin/feature/gp-programinha-v0.2`, commit `841b2699bcb2a4f6005c9ea81dd4d3a18e687861`; working tree limpo.
+- As alterações locais anteriores foram preservadas em stashes nomeados antes da troca de branch; nenhuma alteração pré-existente foi descartada.
+- GP Bridge 0.2 está em execução em `127.0.0.1:8765`; preview de produção do PWA está servindo em `127.0.0.1:4174`.
 ## Integração GP Programinha — estado atual
 
 - O repositório da linguagem mantém o compilador GP 0.8.52 e agora disponibiliza a GP Bridge 0.2 como camada HTTP local.
