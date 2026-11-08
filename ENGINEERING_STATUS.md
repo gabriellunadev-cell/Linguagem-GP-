@@ -27,7 +27,7 @@ Branch de evolução no GitHub: `feature/gp-bridge-v0.2`
 
 ### Testes específicos da Bridge
 
-- 22 testes unitários/integração de payload, limites, caminhos relativos, import aninhado, bloqueio de traversal e execução real.
+- 20 testes unitários de payload, limites, caminhos relativos, import aninhado, bloqueio de traversal e execução real.
 - 5 testes de HTTP real contra servidor loopback, incluindo preflight CORS de `http://localhost:5173`.
 - O processo filho do compilador recebe ambiente mínimo em vez de herdar todas as variáveis do servidor.
 ## Estado confirmado
