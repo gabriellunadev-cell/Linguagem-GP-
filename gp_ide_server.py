@@ -196,7 +196,12 @@ def _run_command(
         completed = subprocess.run(
             command,
             cwd=workspace,
-            env={**os.environ, "PYTHONPATH": str(GP_ROOT)},
+            env={
+                "PATH": os.environ.get("PATH", ""),
+                "PYTHONPATH": str(GP_ROOT),
+                "PYTHONIOENCODING": "utf-8",
+                "PYTHONUTF8": "1",
+            },
             capture_output=True,
             text=True,
             encoding="utf-8",
