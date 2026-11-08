@@ -9,7 +9,10 @@
 - Fixtures binárias GGPC v2 passaram a ser versionadas como Base64 com hash e tamanho verificados antes da materialização, evitando depender de bytes gerados por zlib de cada sistema.
 - Testes HTTP reais cobrem health, compilação de projeto modular, execução modular (retorno 42), rejeição de imports externos e preflight CORS.
 - GitHub Actions (Linux x64, Python 3.12): `make validate` aprovado no commit `895303f0552697fc1e7ff801de0952dea1399cf2`; 264 testes, corpus diferencial 6/6 em todas as seis comparações, fuzz determinístico 64 (38 rejeições, 26 aceitos/executados, zero divergências), hashes e `git diff --check` aprovados.
-- Esta integração não altera a versão do compilador: GP continua em 0.8.52. A validação registrada é no runner Linux; a verificação final no Termux/Android depende do dispositivo local.
+- Esta integração não altera a versão do compilador: GP continua em 0.8.52.
+- Validação adicional no Termux / Android ARM64 (`aarch64`, Python 3.13.13, Clang 21.1.8): `make validate` exit 0; 264 testes em 91,230 s; corpus 6/6; fuzz 64 (38 rejeições, 26 execuções aceitas, zero divergências); hashes e `git diff --check` aprovados.
+- GP Programinha 0.2.0: `npm ci`, `npm run typecheck` e `npm run build` aprovados no Android ARM64; npm audit sem vulnerabilidades.
+- Smoke test local: health 200, compile-project 200, run-project 200 (resultado modular 42), traversal 400, preflight CORS 204; origem real do PWA em 127.0.0.1:4174 autorizada e execução `PWA conectado` confirmada.
 ## Integração GP Programinha — GP Bridge 0.1
 
 - Criado gp_ide_server.py, serviço HTTP local que conecta o editor separado à CLI oficial da linguagem sem duplicar o compilador.
