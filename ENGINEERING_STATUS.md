@@ -3,8 +3,33 @@
 Atualizado em: 2026-11-08
 Ambiente: Android / Termux / ARM64
 Repositório: `$HOME/gabriel-luna-gp`
-Branch observada: `master`
+Branch de evolução no GitHub: `feature/gp-bridge-v0.2`
 
+## Integração GP Programinha — estado atual
+
+- O repositório da linguagem mantém o compilador GP 0.8.52 e agora disponibiliza a GP Bridge 0.2 como camada HTTP local.
+- Endpoints de projeto: `POST /api/compile-project` e `POST /api/run-project`; os endpoints individuais rejeitam imports.
+- Cada projeto é validado antes da escrita no workspace temporário: até 128 arquivos, 4 MiB por fonte e 16 MiB de fontes somadas.
+- Imports absolutos, caminhos externos, backslashes e módulos ausentes são rejeitados; a validação percorre o grafo de imports alcançável, inclusive aninhado.
+- Serviço limitado a `127.0.0.1`, com verificação Host/CORS, allowlist de origem local e ambiente mínimo para o processo compilador.
+- Projeto de integração: https://github.com/gabriellunadev-cell/Linguagem-GP-/pull/1
+- IDE separada: https://github.com/gabriellunadev-cell/Gp-ai-programacao/pull/1
+
+### Validação mais recente — GitHub Actions
+
+- Runner: Ubuntu Linux x64, Python 3.12; resultado não deve ser confundido com validação local Termux/Android.
+- `make validate`: sucesso no commit `1c65079a90b20acf331bfcb4e12c29f3fb578612` (08/11/2026).
+- 263 testes aprovados em 27,068 s.
+- Corpus diferencial: 6/6 casos em cada uma das seis dimensões (`frontend_supported`, `direct_legacy_exact`, `frontend_bootstrap_exact`, `native_runner_exact`, `native_encoder_exact`, `python_c_semantic`).
+- Fuzz determinístico: 64 iterações, 38 rejeições, 26 aceitas/executadas, zero divergências.
+- Testes HTTP reais: health 200; execução de projeto modular 200 com saída `HTTP: 42`; import externo 400; arquivo único com import 400; preflight CORS Vite 204.
+- SHA-256 do corpus GP-IR e `git diff --check` aprovados.
+
+### Testes específicos da Bridge
+
+- 22 testes unitários/integração de payload, limites, caminhos relativos, import aninhado, bloqueio de traversal e execução real.
+- 5 testes de HTTP real contra servidor loopback, incluindo preflight CORS de `http://localhost:5173`.
+- O processo filho do compilador recebe ambiente mínimo em vez de herdar todas as variáveis do servidor.
 ## Estado confirmado
 
 - Encoder GGPC v2 nativo em C implementado e integrado ao CLI auto-hospedado quando a VM C é selecionada.
@@ -13,7 +38,9 @@ Branch observada: `master`
 - Encoder Python permanece como referência de compatibilidade e oráculo diferencial; adaptador e hidratação Python continuam presentes.
 - Encoder C e encoder Python produziram bytes idênticos nos seis casos do corpus.
 
-## Validação executada no Android ARM64
+## Snapshot histórico de validação local no Android ARM64
+
+Os números abaixo documentam um ciclo local anterior e não substituem a validação GitHub Actions mais recente registrada acima.
 
 ### make validate
 - Exit code 0.
