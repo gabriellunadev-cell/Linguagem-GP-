@@ -58,7 +58,7 @@ Os caminhos enviados em `files[].path` são relativos à raiz do projeto. Import
 ## Segurança operacional
 
 - O serviço escuta exclusivamente em `127.0.0.1` e valida Host e origem CORS.
-- CORS é limitado às origens locais de desenvolvimento. Para outra origem explicitamente controlada, configure `GP_BRIDGE_ORIGINS` com uma lista separada por vírgulas.
+- CORS é limitado às origens locais de desenvolvimento, incluindo Vite (`http://localhost:5173` e `http://127.0.0.1:5173`) e preview (`4173`/`4174`). Para outra origem explicitamente controlada, configure `GP_BRIDGE_ORIGINS` com uma lista separada por vírgulas.
 - O compilador é iniciado com lista de argumentos, sem shell.
 - Não existem endpoints genéricos de shell, leitura arbitrária de arquivos, rede, administração ou acesso a credenciais.
 - Não publique a porta, não faça proxy reverso para a internet e não exponha o Bridge em `0.0.0.0`.
