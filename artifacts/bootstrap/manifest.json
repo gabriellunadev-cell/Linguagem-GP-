@@ -14,8 +14,8 @@
     "gpcompiler/lower.py": "09921fe87cc5e308f9be034598ac0ec5efd9dbf84cb820ca24f7a86779b5718b",
     "gpcompiler/bytecode.py": "5d8173be71885bc0bf361a6f5033bd2d4c0a6d406ea6638b273d7dd299431056",
     "gpcompiler/vm.py": "5c8e005c15c411407e11cf0b9757135cabdc98d22959a5a2f14148179fc4fb3d",
-    "linguagem/parser_gp.gp": "bfd5e06435b160014037fa8ec4ff1b8cc8ca920809b763e169e49e2101de136f"
+    "linguagem/parser_gp.gp": "06edae0818ba5ed61117e4fd11d6bb3355c9cafe3949b3cd7c41417b583d4331"
   },
-  "bytecode_sha256": "2d4c5c8811168a0a9adfb57a0b63bef605f7ed47d1079435d5779d312c5c3a41",
-  "bytecode_size": 23517
+  "bytecode_sha256": "917a71671c6bff321740d10e74cd477ca9e82678d21c7984026ba39693435bf7",
+  "bytecode_size": 23658
 }

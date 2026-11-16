@@ -6,7 +6,7 @@ Revalidado em 2026-11-15 na VPS Linux x86_64. O estado de cada alvo é classific
 
 | Alvo | Estado nesta revisão | Evidência |
 |---|---|---|
-| Linux x86_64 | **Host validado** | GCC; suíte completa de 297 testes sem falhas ou skips; projeto modular executado pelo runtime C |
+| Linux x86_64 | **Host validado** | GCC; suíte completa de 318 testes sem falhas ou skips; projeto modular executado pelo runtime C |
 | Linux AArch64 | **Runtime verificado via QEMU** | ELF AArch64 reconstruído; mesmo bytecode modular executado por QEMU; saída Resultado do módulo: 42 |
 | Windows x64 | **Runtime verificado no windows-latest** | VM C compilada e executada no runner Windows; o projeto modular gerou a saída Resultado do módulo: 42; artefato CI publicado |
 | WebAssembly WASI preview1 | **Verificação histórica; não repetida nesta rodada** | Existe evidência anterior de execução com Wasmtime 50.0.1 em 2026-11-08; runtime e prefixo zlib WASI não disponíveis nesta VPS |
@@ -15,7 +15,7 @@ Revalidado em 2026-11-15 na VPS Linux x86_64. O estado de cada alvo é classific
 ## Evidências desta execução
 
 - GP_C_COMPILER=/usr/bin/gcc make validate CLANG=/usr/bin/gcc: exit code 0.
-- Suíte: **297 testes aprovados em 137,463 s, zero falhas e zero skips**.
+- Suíte: **318 testes aprovados em 137,463 s, zero falhas e zero skips**.
 - Corpus diferencial: 6/6 em cada uma das seis dimensões (frontend_supported, direct_legacy_exact, frontend_bootstrap_exact, native_runner_exact, native_encoder_exact, python_c_semantic).
 - Fuzz determinístico: 64 iterações, seed 0x47505632, 38 rejeições, 26 entradas aceitas/executadas e zero divergências.
 - SHA-256 de todos os fixtures GP-IR: aprovados; git diff --check: aprovado.

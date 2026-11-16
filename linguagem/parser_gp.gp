@@ -2356,6 +2356,25 @@ funcao tipo_expressao_semantica_ast_gp(numero indice, numero escopo) -> texto {
             }
             retornar valor
         }
+        se (valor == "py_chamar") {
+            se (quantidade_filhos_ast_gp(indice) != 2) {
+                erro_semantico_ast_gp = "py_chamar exige dois argumentos: capacidade e lista"
+                retornar "desconhecido"
+            }
+            texto tipo_capacidade_python_gp = tipo_expressao_semantica_ast_gp(obter_filho_ast_gp(indice, 0), escopo)
+            se (erro_semantico_ast_gp != "") { retornar "desconhecido" }
+            se (tipo_capacidade_python_gp != "texto") {
+                erro_semantico_ast_gp = "O primeiro argumento de py_chamar deve ser texto"
+                retornar "desconhecido"
+            }
+            texto tipo_argumentos_python_gp = tipo_expressao_semantica_ast_gp(obter_filho_ast_gp(indice, 1), escopo)
+            se (erro_semantico_ast_gp != "") { retornar "desconhecido" }
+            se (tipo_elemento_lista_semantica_ast_gp(tipo_argumentos_python_gp) == "") {
+                erro_semantico_ast_gp = "O segundo argumento de py_chamar deve ser uma lista"
+                retornar "desconhecido"
+            }
+            retornar "desconhecido"
+        }
         numero f = 0
         numero encontrado = -1
         enquanto (f < tamanho(nomes_funcoes_semanticas_gp)) { se (nomes_funcoes_semanticas_gp[f] == valor) { encontrado = f }; f = f + 1 }
@@ -2517,7 +2536,7 @@ funcao analisar_comando_semantico_ast_gp(numero indice, numero escopo) -> logico
         }
         tipo_real = tipo_expressao_semantica_ast_gp(no.filhos[0], escopo)
         se (erro_semantico_ast_gp != "") { retornar falso }
-        se (tipo_declarado != tipo_real) {
+        se (tipo_real != "desconhecido" && tipo_declarado != tipo_real) {
             texto elemento_esperado = tipo_elemento_lista_semantica_ast_gp(tipo_declarado)
             texto elemento_recebido = tipo_elemento_lista_semantica_ast_gp(tipo_real)
             se (elemento_esperado == "" || elemento_recebido != "desconhecido" && elemento_esperado != elemento_recebido) {
@@ -2570,7 +2589,7 @@ funcao analisar_comando_semantico_ast_gp(numero indice, numero escopo) -> logico
         }
         tipo_real = tipo_expressao_semantica_ast_gp(no.filhos[1], escopo)
         se (erro_semantico_ast_gp != "") { retornar falso }
-        se (tipo_declarado != tipo_real) {
+        se (tipo_real != "desconhecido" && tipo_declarado != tipo_real) {
             texto elemento_esperado_atribuicao = tipo_elemento_lista_semantica_ast_gp(tipo_declarado)
             texto elemento_recebido_atribuicao = tipo_elemento_lista_semantica_ast_gp(tipo_real)
             se (elemento_esperado_atribuicao == "" || elemento_recebido_atribuicao != "desconhecido" && elemento_esperado_atribuicao != elemento_recebido_atribuicao) {

@@ -243,6 +243,28 @@ class SelfHostedIRAdapterTests(unittest.TestCase):
             GPVirtualMachine().run_bytes(encode_canonical_ir(document))
         self.assertEqual(output.getvalue(), "0\n")
 
+    def test_self_hosted_frontend_compiles_python_interop_calls_for_reference_vm(self):
+        source = """
+            numero raiz = py_chamar("math.sqrt", [81])
+            texto digest = py_chamar("hashlib.sha256", ["GP"])
+            mostrar(raiz, tamanho(digest))
+        """
+        document = compile_source_selfhosted_document(source)
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            GPVirtualMachine(python_interop=True).run_bytes(
+                encode_canonical_ir(document)
+            )
+        self.assertEqual(output.getvalue(), "9.0 64\n")
+
+    def test_self_hosted_frontend_validates_python_interop_call_shape(self):
+        with self.assertRaisesRegex(ValueError, "py_chamar exige dois argumentos"):
+            compile_source_selfhosted_document('py_chamar("math.sqrt")')
+        with self.assertRaisesRegex(ValueError, "primeiro argumento de py_chamar deve ser texto"):
+            compile_source_selfhosted_document("py_chamar(81, [81])")
+        with self.assertRaisesRegex(ValueError, "segundo argumento de py_chamar deve ser uma lista"):
+            compile_source_selfhosted_document('py_chamar("math.sqrt", 81)')
+
     def test_self_hosted_frontend_accepts_standalone_call_statements(self):
         source = """
             lista numero values = []

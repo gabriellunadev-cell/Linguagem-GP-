@@ -414,7 +414,7 @@ A linha de base da VM C e do frontend auto-hospedado está em `docs/PERFORMANCE_
 
 ## GP 0.8.52 — interoperabilidade híbrida Python + GP — 2026-11-15
 
-- py_chamar(capacidade, argumentos) permite ao código GP usar um conjunto fixo de funções Python padrão no runtime de referência.
+- py_chamar(capacidade, argumentos) permite ao código GP usar um conjunto fixo de funções Python padrão no runtime de referência; o frontend GP auto-hospedado também analisa e compila esse builtin.
 - A ativação é explícita por --python-interop; o Programinha transmite pythonInterop: true apenas quando o usuário habilita a opção.
 - biblioteca/python.gp oferece wrappers GP para matemática, estatística, hash e normalização Unicode.
 - Segurança: allowlist fechada, limites de chamadas/argumentos/valores, sem eval/exec, importação dinâmica, shell, filesystem ou rede.

@@ -9,9 +9,9 @@
 - Biblioteca de conveniência biblioteca/python.gp adicionada com wrappers GP para raiz, seno, cosseno, logaritmo, fatorial, média, mediana, desvio padrão, SHA-256 e normalização NFC.
 - GP Bridge aceita pythonInterop booleano nos endpoints de execução; /api/health anuncia allowlist e informa defaultEnabled=false. O GP Programinha expõe o controle em Configurações e persiste a opção localmente; o padrão é desligado.
 - Validação focada: 70 testes aprovados, incluindo chamadas por VM, bootstrap e Bridge HTTP.
-- Validação completa: GP_C_COMPILER=/usr/bin/gcc make validate CLANG=/usr/bin/gcc concluído; 316 testes em 137,079 s, zero falhas/skips; corpus diferencial 6/6; fuzz 64 (38 rejeições, 26 aceitas/executadas, zero divergências); hashes dos fixtures e git diff --check aprovados.
+- Validação completa: GP_C_COMPILER=/usr/bin/gcc make validate CLANG=/usr/bin/gcc concluído; 318 testes em 189,475 s, zero falhas/skips; corpus diferencial 6/6; fuzz 64 (38 rejeições, 26 aceitas/executadas, zero divergências); hashes dos fixtures e git diff --check aprovados.
 - Matriz: Linux x86_64 aprovado; Linux AArch64 executado via QEMU com saída Resultado do módulo: 42; Windows x64 runtime já verificado no windows-latest (evidência na seção multiplataforma); Android NDK/Bionic permanece pendente; WASI foi ignorado por falta do ambiente Wasmtime/zlib WASI nesta VPS.
-- Limite explícito: py_chamar só funciona no runtime Python de referência e no interpretador bootstrap. A VM C nativa e o frontend auto-hospedado ainda não implementam a fronteira Python. A autossuficiência integral do toolchain não foi alterada e não foi declarada como concluída.
+- Limite explícito: py_chamar funciona no runtime Python de referência e no interpretador bootstrap; o frontend auto-hospedado em GP também reconhece/valida a chamada e gera GGPC v2; dois testes de regressão cobrem execução híbrida e validação da forma dos argumentos. A VM C nativa ainda não executa py_chamar; o CLI rejeita combinar --python-interop com --run-vm native. A autossuficiência integral do toolchain não foi alterada e não foi declarada como concluída.
 - A versão permanece GP 0.8.52; não houve release 1.0.0.
 
 ---
