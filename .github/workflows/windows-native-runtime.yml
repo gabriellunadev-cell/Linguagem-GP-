@@ -1,0 +1,70 @@
+name: GP native platform runtime
+
+on:
+  push:
+    branches:
+      - feature/gp-bridge-v0.2
+  pull_request:
+    branches:
+      - main
+      - feature/gp-bridge-v0.2
+
+permissions:
+  contents: read
+
+jobs:
+  windows-x64-runtime:
+    name: Windows x64 native VM execution
+    runs-on: windows-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v7
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install MSYS2 UCRT64 toolchain and static zlib
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-zlib
+      - name: Build native Windows VM
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          test "$(gcc -dumpmachine)" = "x86_64-w64-mingw32"
+          gcc -std=c11 -O2 -Wall -Wextra -Wpedantic -static-libgcc \
+            gpvm_native.c -lpsapi -Wl,-Bstatic -lz -Wl,-Bdynamic -lm \
+            -o build/gpvm-native-windows.exe
+          test -s build/gpvm-native-windows.exe
+          file build/gpvm-native-windows.exe
+          objdump -p build/gpvm-native-windows.exe | sed -n 's/^[[:space:]]*DLL Name: /DLL /p'
+      - name: Compile and execute a modular GP project on Windows
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path build | Out-Null
+          $log = Join-Path $env:RUNNER_TEMP "gp-windows-runtime-smoke.log"
+          python gp_compile.py exemplos/modulos/aplicacao.gp -o build/windows-runtime-smoke.gbc `
+            --self-hosted --runner-vm native --native-vm build/gpvm-native-windows.exe `
+            --run-vm native --run *> $log
+          $exitCode = $LASTEXITCODE
+          Get-Content $log
+          if ($exitCode -ne 0) {
+            throw "GP native Windows smoke test failed with exit code $exitCode"
+          }
+          if (-not (Select-String -Path $log -Pattern "Resultado do módulo: 42" -Quiet)) {
+            throw "Windows runtime did not produce the expected modular-project result"
+          }
+          Write-Output "GP_WINDOWS_X64_RUNTIME_OK"
+      - name: Upload Windows validation artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: gp-windows-x64-runtime-validation
+          if-no-files-found: error
+          path: |
+            build/gpvm-native-windows.exe
+            build/windows-runtime-smoke.gbc
