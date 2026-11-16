@@ -13,6 +13,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
+from gpcompiler.python_interop import PythonInterop, PythonInteropError
+
 
 GP_MAX_TEXT_JOIN_BYTES = 64 * 1024 * 1024
 
@@ -717,7 +719,12 @@ def _builtin_join_texts(arguments: list[Any]) -> str:
     return "".join(parts)
 
 
-def run_source(source: str, base_dir: str | Path | None = None) -> None:
+def run_source(
+    source: str,
+    base_dir: str | Path | None = None,
+    *,
+    python_interop: bool = False,
+) -> None:
     tokens = lex(source)
     tree = Parser(tokens).parse()
     root = Environment(base_dir=Path(base_dir) if base_dir is not None else Path.cwd())
@@ -725,6 +732,19 @@ def run_source(source: str, base_dir: str | Path | None = None) -> None:
     root.define("adicionar", GPBuiltin("adicionar", _builtin_add))
     root.define("remover", GPBuiltin("remover", _builtin_remove))
     root.define("unir_textos", GPBuiltin("unir_textos", _builtin_join_texts))
+    python_bridge = PythonInterop() if python_interop else None
+
+    def call_python(arguments: list[Any]) -> Any:
+        if python_bridge is None:
+            raise GPError("py_chamar indisponível: ative --python-interop")
+        if len(arguments) != 2:
+            raise GPError("py_chamar() exige o nome da capacidade e uma lista de argumentos")
+        try:
+            return python_bridge.call(arguments[0], arguments[1])
+        except PythonInteropError as exc:
+            raise GPError(str(exc)) from exc
+
+    root.define("py_chamar", GPBuiltin("py_chamar", call_python))
     try:
         execute_block(tree, root, new_scope=False)
     except ReturnSignal as exc:
@@ -736,14 +756,20 @@ def run_source(source: str, base_dir: str | Path | None = None) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = sys.argv[1:] if argv is None else argv
+    args = list(sys.argv[1:] if argv is None else argv)
+    python_interop = "--python-interop" in args
+    args = [item for item in args if item != "--python-interop"]
     if len(args) != 1:
         print("GP — Gabriel Programming v0.2.0")
-        print("Uso: python gp.py arquivo.gp")
+        print("Uso: python gp.py arquivo.gp [--python-interop]")
         return 2
     path = Path(args[0])
     try:
-        run_source(path.read_text(encoding="utf-8"), base_dir=path.resolve().parent)
+        run_source(
+            path.read_text(encoding="utf-8"),
+            base_dir=path.resolve().parent,
+            python_interop=python_interop,
+        )
         return 0
     except (GPError, OSError, json.JSONDecodeError) as exc:
         print(f"Erro GP: {exc}", file=sys.stderr)

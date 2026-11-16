@@ -612,6 +612,11 @@ def main(argv=None):
     parser.add_argument("-o", "--output", help="Arquivo de bytecode .gbc")
     parser.add_argument("--run", action="store_true", help="Executar o bytecode após compilar")
     parser.add_argument(
+        "--python-interop",
+        action="store_true",
+        help="habilitar a ponte Python allowlisted (somente --run-vm python)",
+    )
+    parser.add_argument(
         "--run-vm",
         choices=("python", "native"),
         default="python",
@@ -648,6 +653,10 @@ def main(argv=None):
         help="limite de instruções do runner GP (máximo 100 milhões)",
     )
     args = parser.parse_args(argv)
+    if args.python_interop and not args.run:
+        parser.error("--python-interop exige --run")
+    if args.python_interop and args.run_vm != "python":
+        parser.error("--python-interop funciona somente com --run-vm python")
     if not 1 <= args.run_max_steps <= 100_000_000:
         parser.error("--run-max-steps deve estar entre 1 e 100.000.000")
     if not 1 <= args.run_timeout_seconds <= 3600:
@@ -698,7 +707,10 @@ def main(argv=None):
         if args.run:
             print(f"GP VM ({args.run_vm}): execução iniciada", flush=True)
             if args.run_vm == "python":
-                GPVirtualMachine(max_steps=args.run_max_steps).run_bytes(bytecode)
+                GPVirtualMachine(
+                    max_steps=args.run_max_steps,
+                    python_interop=args.python_interop,
+                ).run_bytes(bytecode)
             else:
                 native_path = Path(native_vm_path).resolve()
                 if not native_path.is_file():

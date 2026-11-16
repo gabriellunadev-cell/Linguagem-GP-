@@ -410,3 +410,13 @@ A linha de base da VM C e do frontend auto-hospedado está em `docs/PERFORMANCE_
 - [x] Pico de heap 79,79/79,88 MiB e RSS 94,47/94,77 MiB, dentro do teto de 256 MiB; 1.057 ciclos de GC e 2,40 GiB cumulativos recuperados por estágio.
 
 **Limites restantes:** imports ainda precisam de integração ponta a ponta com o resolvedor GP; o caminho Python-free suporta apenas fonte única sem imports; bootstrap inicial ainda é produzido por Python; Android, Windows e WASI ainda não foram compilados e testados.
+
+
+## GP 0.8.52 — interoperabilidade híbrida Python + GP — 2026-11-15
+
+- py_chamar(capacidade, argumentos) permite ao código GP usar um conjunto fixo de funções Python padrão no runtime de referência.
+- A ativação é explícita por --python-interop; o Programinha transmite pythonInterop: true apenas quando o usuário habilita a opção.
+- biblioteca/python.gp oferece wrappers GP para matemática, estatística, hash e normalização Unicode.
+- Segurança: allowlist fechada, limites de chamadas/argumentos/valores, sem eval/exec, importação dinâmica, shell, filesystem ou rede.
+- Compatibilidade: GP-IR v1 e GGPC v2 permanecem inalterados. A VM C nativa continua independente da camada Python.
+- Próxima fronteira: definir um ABI de host capabilities no GP-IR para que runtimes nativos implementem capacidades explicitamente portáveis; não encaminhar chamadas Python arbitrárias para a VM C.

@@ -1,5 +1,21 @@
 # ENGINEERING_STATUS — Gabriel Programming
 
+## Integração híbrida Python + GP — 2026-11-15
+
+- Implementado o builtin GP py_chamar na VM de referência com opção explícita --python-interop; sem a opção, a chamada falha de forma fechada.
+- O interpretador bootstrap gp.py também aceita --python-interop.
+- Allowlist estática: math, statistics, hashlib, unicodedata e textwrap; sem importação dinâmica, eval/exec, shell, subprocessos, arquivos ou rede.
+- Limites por execução: 1.024 chamadas; até 16 argumentos por chamada; listas com 10.000 valores e profundidade 8; textos até 1 MiB; números finitos e inteiros no intervalo seguro.
+- Biblioteca de conveniência biblioteca/python.gp adicionada com wrappers GP para raiz, seno, cosseno, logaritmo, fatorial, média, mediana, desvio padrão, SHA-256 e normalização NFC.
+- GP Bridge aceita pythonInterop booleano nos endpoints de execução; /api/health anuncia allowlist e informa defaultEnabled=false. O GP Programinha expõe o controle em Configurações e persiste a opção localmente; o padrão é desligado.
+- Validação focada: 70 testes aprovados, incluindo chamadas por VM, bootstrap e Bridge HTTP.
+- Validação completa: GP_C_COMPILER=/usr/bin/gcc make validate CLANG=/usr/bin/gcc concluído; 316 testes em 137,079 s, zero falhas/skips; corpus diferencial 6/6; fuzz 64 (38 rejeições, 26 aceitas/executadas, zero divergências); hashes dos fixtures e git diff --check aprovados.
+- Matriz: Linux x86_64 aprovado; Linux AArch64 executado via QEMU com saída Resultado do módulo: 42; Windows x64 runtime já verificado no windows-latest (evidência na seção multiplataforma); Android NDK/Bionic permanece pendente; WASI foi ignorado por falta do ambiente Wasmtime/zlib WASI nesta VPS.
+- Limite explícito: py_chamar só funciona no runtime Python de referência e no interpretador bootstrap. A VM C nativa e o frontend auto-hospedado ainda não implementam a fronteira Python. A autossuficiência integral do toolchain não foi alterada e não foi declarada como concluída.
+- A versão permanece GP 0.8.52; não houve release 1.0.0.
+
+---
+
 ## Revalidação integrada na VPS — 2026-11-15
 
 Ambiente: VPS Linux x86_64; GCC em /usr/bin/gcc; QEMU AArch64; MinGW-w64.

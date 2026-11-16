@@ -14,6 +14,20 @@ class GPLanguageTests(unittest.TestCase):
             run_source(source)
         return output.getvalue().strip().splitlines()
 
+    def test_bootstrap_interpreter_can_call_allowlisted_python(self):
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            run_source(
+                'mostrar(py_chamar("math.sqrt", [81]), '
+                'py_chamar("statistics.mean", [[2, 4, 6]]))',
+                python_interop=True,
+            )
+        self.assertEqual(output.getvalue(), "9.0 4.0\n")
+
+    def test_bootstrap_interpreter_requires_python_interop_opt_in(self):
+        with self.assertRaisesRegex(GPError, "ative --python-interop"):
+            self.execute('mostrar(py_chamar("math.sqrt", [81]))')
+
     def test_legacy_language(self):
         output = self.execute('''
             programa "v0.1"

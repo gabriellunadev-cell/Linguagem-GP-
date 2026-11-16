@@ -1,5 +1,7 @@
 # GP — Gabriel Programming
 
+> GP 0.8.52: execução híbrida Python + GP disponível por opt-in no runtime de referência, allowlist segura, biblioteca GP de wrappers e controle no Programinha. Validação integral em 2026-11-15: 316 testes aprovados, corpus diferencial 6/6, fuzz 64 sem divergências; Linux ARM64 via QEMU e Windows x64 via CI. Android NDK/Bionic e WASI seguem pendentes. Autohospedagem integral continua em desenvolvimento.
+
 > GP 0.8.52: revalidação integrada na VPS em 2026-11-15; make validate aprovado, 297/297 testes, zero falhas/skips; corpus diferencial 6/6; fuzz 64 sem divergências. Linux x86_64 validado; Linux ARM64 executado via QEMU; Windows x64 runtime verificado em windows-latest; projeto modular executado com saída 42; Android NDK/Bionic e WASI não foram reexecutados nesta rodada. GP Programinha typecheck/build aprovados e integração HTTP local 7/7. Autohospedagem integral continua pendente. Consulte ENGINEERING_STATUS.md e docs/MULTIPLATFORM.md.
 
 Linguagem proprietária do projeto Gabriel Luna, com prioridade de desenvolvimento e execução no Android ARM64.

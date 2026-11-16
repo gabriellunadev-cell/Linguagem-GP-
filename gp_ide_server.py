@@ -17,6 +17,7 @@ from urllib.parse import urlsplit
 
 from gp import GPError, Parser, lex
 from gpcompiler.ast import from_parser_tree
+from gpcompiler.python_interop import PythonInterop, MAX_CALLS_PER_RUN
 
 GP_ROOT = Path(__file__).resolve().parent
 COMPILER = GP_ROOT / "gp_compile.py"
@@ -114,9 +115,17 @@ def _validate_project_imports(entry_file: str, files: dict[str, str]) -> None:
             pending.append(resolved)
 
 
-def validate_payload(payload: object, *, require_runtime: bool = False) -> tuple[str, str]:
+def _validate_python_interop(payload: dict[str, object]) -> bool:
+    enabled = payload.get("pythonInterop", False)
+    if not isinstance(enabled, bool):
+        raise BridgeError("O campo 'pythonInterop' precisa ser booleano.")
+    return enabled
+
+
+def validate_payload(payload: object, *, require_runtime: bool = False) -> tuple[str, str, bool]:
     if not isinstance(payload, dict):
         raise BridgeError("O corpo precisa ser um objeto JSON.")
+    python_interop = _validate_python_interop(payload)
     source = payload.get("source")
     if not isinstance(source, str):
         raise BridgeError("O campo 'source' precisa ser texto.")
@@ -136,12 +145,13 @@ def validate_payload(payload: object, *, require_runtime: bool = False) -> tuple
         raise BridgeError("Este arquivo importa módulos. Envie o projeto completo pelos endpoints /api/*-project.")
     if require_runtime and payload.get("runtime", "reference") != "reference":
         raise BridgeError("Apenas o runtime de referência está disponível nesta versão.")
-    return source, file_name
+    return source, file_name, python_interop
 
 
-def validate_project_payload(payload: object) -> tuple[str, dict[str, str]]:
+def validate_project_payload(payload: object) -> tuple[str, dict[str, str], bool]:
     if not isinstance(payload, dict):
         raise BridgeError("O corpo precisa ser um objeto JSON.")
+    python_interop = _validate_python_interop(payload)
     entry_file = payload.get("entryFile")
     raw_files = payload.get("files")
     if not isinstance(entry_file, str) or not PROJECT_PATH_RE.fullmatch(entry_file):
@@ -182,7 +192,7 @@ def validate_project_payload(payload: object) -> tuple[str, dict[str, str]]:
     if entry_file not in files:
         raise BridgeError("O arquivo principal não existe no conjunto enviado.")
     _validate_project_imports(entry_file, files)
-    return entry_file, files
+    return entry_file, files, python_interop
 
 
 def _timeout_text(value: str | bytes | None) -> str:
@@ -250,6 +260,7 @@ def execute_source(
     file_name: str,
     *,
     run: bool,
+    python_interop: bool = False,
     timeout_seconds: float | None = None,
 ) -> dict[str, object]:
     """Compile one in-memory source file in a disposable workspace."""
@@ -270,6 +281,8 @@ def execute_source(
         ]
         if run:
             command.extend(["--run", "--run-vm", "python", "--run-max-steps", "1000000"])
+            if python_interop:
+                command.append("--python-interop")
         return _run_command(
             command, workspace, run=run, started=started, timeout_seconds=timeout
         )
@@ -280,6 +293,7 @@ def execute_project(
     files: dict[str, str],
     *,
     run: bool,
+    python_interop: bool = False,
 ) -> dict[str, object]:
     """Compile or run a validated project in an isolated temporary workspace."""
     if not COMPILER.is_file():
@@ -308,6 +322,8 @@ def execute_project(
         ]
         if run:
             command.extend(["--run", "--run-vm", "python", "--run-max-steps", "1000000"])
+            if python_interop:
+                command.append("--python-interop")
         return _run_command(command, workspace, run=run, started=started)
 
 
@@ -368,6 +384,12 @@ class GPBridgeHandler(BaseHTTPRequestHandler):
             "bridgeVersion": BRIDGE_VERSION,
             "compilerAvailable": COMPILER.is_file(),
             "projectApi": True,
+            "pythonInterop": {
+                "available": True,
+                "defaultEnabled": False,
+                "allowlist": list(PythonInterop().allowlist),
+                "maxCallsPerRun": MAX_CALLS_PER_RUN,
+            },
             "limits": {
                 "files": MAX_FILES,
                 "fileBytes": MAX_FILE_BYTES,
@@ -408,16 +430,22 @@ class GPBridgeHandler(BaseHTTPRequestHandler):
         try:
             payload = json.loads(raw.decode("utf-8", errors="strict"))
             if endpoint.endswith("-project"):
-                entry_file, files = validate_project_payload(payload)
+                entry_file, files, python_interop = validate_project_payload(payload)
                 result = execute_project(
-                    entry_file, files, run=endpoint == "/api/run-project"
+                    entry_file,
+                    files,
+                    run=endpoint == "/api/run-project",
+                    python_interop=python_interop,
                 )
             else:
-                source, file_name = validate_payload(
+                source, file_name, python_interop = validate_payload(
                     payload, require_runtime=endpoint == "/api/run"
                 )
                 result = execute_source(
-                    source, file_name, run=endpoint == "/api/run"
+                    source,
+                    file_name,
+                    run=endpoint == "/api/run",
+                    python_interop=python_interop,
                 )
             self._send_json(200, result)
         except UnicodeDecodeError:

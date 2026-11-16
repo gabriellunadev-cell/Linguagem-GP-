@@ -23,7 +23,7 @@ class Scope:
 
 
 class SemanticAnalyzer:
-    BUILTINS = {"tamanho", "adicionar", "remover", "entrada_fonte", "unir_textos"}
+    BUILTINS = {"tamanho", "adicionar", "remover", "entrada_fonte", "unir_textos", "py_chamar"}
 
     def __init__(self):
         self.functions: dict[str, tuple[list[str], str | None]] = {}
@@ -117,6 +117,15 @@ class SemanticAnalyzer:
             actual = [self._expr(item, scope) for item in arguments]
             if name is None:
                 self._error("Chamada de função inválida")
+                return "desconhecido"
+            if name == "py_chamar":
+                if len(actual) != 2:
+                    self._error("py_chamar() exige 2 argumentos: capacidade e lista")
+                else:
+                    if actual[0] not in ("texto", "desconhecido"):
+                        self._error("py_chamar(): o primeiro argumento precisa ser texto")
+                    if actual[1] not in ("lista", "desconhecido"):
+                        self._error("py_chamar(): o segundo argumento precisa ser uma lista")
                 return "desconhecido"
             if name == "entrada_fonte":
                 if actual: self._error("entrada_fonte() não aceita argumentos")

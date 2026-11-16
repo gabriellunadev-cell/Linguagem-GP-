@@ -43,9 +43,20 @@ class GPBridgeTests(unittest.TestCase):
         self.assertIn("http://127.0.0.1:5173", origins)
 
     def test_payload_accepts_simple_gp_file(self):
-        source, file_name = validate_payload({"source": 'mostrar("Olá")', "fileName": "principal.gp"})
+        source, file_name, python_interop = validate_payload({"source": 'mostrar("Olá")', "fileName": "principal.gp"})
         self.assertEqual(source, 'mostrar("Olá")')
         self.assertEqual(file_name, "principal.gp")
+        self.assertFalse(python_interop)
+
+    def test_payload_requires_boolean_python_interop_opt_in(self):
+        source, _name, enabled = validate_payload({
+            "source": 'mostrar(py_chamar("math.sqrt", [81]))',
+            "pythonInterop": True,
+        })
+        self.assertIn("py_chamar", source)
+        self.assertTrue(enabled)
+        with self.assertRaisesRegex(BridgeError, "precisa ser booleano"):
+            validate_payload({"source": "mostrar(1)", "pythonInterop": "true"})
 
     def test_payload_rejects_path_traversal(self):
         with self.assertRaises(BridgeError):
@@ -77,8 +88,17 @@ class GPBridgeTests(unittest.TestCase):
         self.assertEqual(result["exitCode"], 0)
         self.assertIn("GP Bridge ativo", result["stdout"])
 
+    def test_run_endpoint_executes_python_interop_only_when_requested(self):
+        source = 'mostrar("Python:", py_chamar("math.sqrt", [144]))'
+        denied = execute_source(source, "principal.gp", run=True)
+        self.assertFalse(denied["ok"])
+        self.assertIn("ative --python-interop", denied["stderr"])
+        enabled = execute_source(source, "principal.gp", run=True, python_interop=True)
+        self.assertTrue(enabled["ok"], enabled["stderr"])
+        self.assertIn("Python: 12.0", enabled["stdout"])
+
     def test_project_payload_accepts_relative_module_tree(self):
-        entry, files = validate_project_payload({
+        entry, files, python_interop = validate_project_payload({
             "entryFile": "app/principal.gp",
             "files": [
                 {
@@ -93,6 +113,7 @@ class GPBridgeTests(unittest.TestCase):
         })
         self.assertEqual(entry, "app/principal.gp")
         self.assertEqual(len(files), 2)
+        self.assertFalse(python_interop)
 
     def test_project_execution_compiles_and_runs_all_modules(self):
         result = execute_project(
@@ -110,6 +131,22 @@ class GPBridgeTests(unittest.TestCase):
         self.assertTrue(result["ok"], result["stderr"])
         self.assertEqual(result["exitCode"], 0)
         self.assertIn("Resultado: 42", result["stdout"])
+
+    def test_project_execution_can_opt_in_to_python_standard_library(self):
+        result = execute_project(
+            "app/principal.gp",
+            {
+                "app/principal.gp": (
+                    'numero raiz = py_chamar("math.sqrt", [81])\n'
+                    'numero media = py_chamar("statistics.mean", [[2, 4, 6, 8]])\n'
+                    'mostrar("Híbrido:", raiz, media)'
+                ),
+            },
+            run=True,
+            python_interop=True,
+        )
+        self.assertTrue(result["ok"], result["stderr"])
+        self.assertIn("Híbrido: 9.0 5.0", result["stdout"])
 
     def test_project_payload_rejects_entry_path_traversal(self):
         with self.assertRaises(BridgeError):
@@ -227,6 +264,9 @@ class GPBridgeHTTPTests(unittest.TestCase):
         self.assertTrue(body["ok"])
         self.assertTrue(body["projectApi"])
         self.assertEqual(body["bridgeVersion"], "0.2")
+        self.assertTrue(body["pythonInterop"]["available"])
+        self.assertFalse(body["pythonInterop"]["defaultEnabled"])
+        self.assertIn("math.sqrt", body["pythonInterop"]["allowlist"])
 
     def test_configured_public_host_is_accepted_over_real_http(self):
         request = urllib.request.Request(
@@ -268,6 +308,25 @@ class GPBridgeHTTPTests(unittest.TestCase):
                 "http://localhost:5173",
             )
             self.assertIn("POST", response.headers.get("Access-Control-Allow-Methods", ""))
+
+    def test_run_endpoint_over_real_http_can_opt_in_to_python(self):
+        status, body = self.request_json("POST", "/api/run", {
+            "fileName": "principal.gp",
+            "source": 'mostrar("Python:", py_chamar("math.sqrt", [144]))',
+            "pythonInterop": True,
+        })
+        self.assertEqual(status, 200, body)
+        self.assertTrue(body["ok"], body["stderr"])
+        self.assertIn("Python: 12.0", body["stdout"])
+
+    def test_run_endpoint_over_real_http_rejects_non_boolean_python_interop(self):
+        status, body = self.request_json("POST", "/api/run", {
+            "fileName": "principal.gp",
+            "source": "mostrar(1)",
+            "pythonInterop": "true",
+        })
+        self.assertEqual(status, 400)
+        self.assertIn("precisa ser booleano", body["error"])
 
     def test_project_compile_endpoint_over_real_http(self):
         status, body = self.request_json("POST", "/api/compile-project", {
@@ -313,6 +372,19 @@ class GPBridgeHTTPTests(unittest.TestCase):
         self.assertEqual(status, 200, body)
         self.assertTrue(body["ok"], body["stderr"])
         self.assertIn("HTTP: 42", body["stdout"])
+
+    def test_project_run_endpoint_over_real_http_can_opt_in_to_python(self):
+        status, body = self.request_json("POST", "/api/run-project", {
+            "entryFile": "app/principal.gp",
+            "files": [{
+                "path": "app/principal.gp",
+                "source": 'mostrar("Python:", py_chamar("math.sqrt", [169]))',
+            }],
+            "pythonInterop": True,
+        })
+        self.assertEqual(status, 200, body)
+        self.assertTrue(body["ok"], body["stderr"])
+        self.assertIn("Python: 13.0", body["stdout"])
 
     def test_project_endpoint_rejects_outside_import_over_real_http(self):
         status, body = self.request_json("POST", "/api/compile-project", {

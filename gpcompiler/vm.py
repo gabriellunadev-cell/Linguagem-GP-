@@ -1,6 +1,7 @@
 """Portable reference VM for GP bytecode v1/v2."""
 from __future__ import annotations
 from .bytecode import decode
+from .python_interop import PythonInterop, PythonInteropError
 
 
 GP_MAX_HOST_SOURCE_BYTES = 16 * 1024 * 1024
@@ -33,10 +34,13 @@ class GPStructValue:
 
 
 class GPVirtualMachine:
-    def __init__(self, max_steps: int = 1_000_000):
+    def __init__(self, max_steps: int = 1_000_000, *, python_interop: bool = False):
         if max_steps < 1:
             raise ValueError("max_steps deve ser maior que zero")
+        if not isinstance(python_interop, bool):
+            raise ValueError("python_interop precisa ser booleano")
         self.max_steps = max_steps
+        self.python_interop = PythonInterop() if python_interop else None
         self.steps = 0
         self.globals = {}
         self.global_types = {}
@@ -90,6 +94,15 @@ class GPVirtualMachine:
             raise GPVMError(f"Operação inválida {op}: {exc}") from exc
 
     def _call_builtin(self, name, args):
+        if name == "py_chamar":
+            if self.python_interop is None:
+                raise GPVMError("py_chamar indisponível: ative --python-interop no runtime Python")
+            if len(args) != 2:
+                raise GPVMError("py_chamar() exige o nome da capacidade e uma lista de argumentos")
+            try:
+                return self.python_interop.call(args[0], args[1])
+            except PythonInteropError as exc:
+                raise GPVMError(str(exc)) from exc
         if name == "entrada_fonte" and len(args) == 0:
             if self._host_source is None:
                 raise GPVMError("entrada_fonte indisponível: o host não forneceu uma fonte")
@@ -299,6 +312,8 @@ class GPVirtualMachine:
         self.globals = {}
         self.global_types = {}
         self._host_source = host_source
+        if self.python_interop is not None:
+            self.python_interop.reset()
         try:
             return self._execute(program["main"], program.get("functions", {}), self.globals)
         finally:

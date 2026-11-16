@@ -18,3 +18,7 @@ O exemplo executável está em [biblioteca_padrao.gp](../exemplos/biblioteca_pad
 ## Política
 
 Uma função só entra na biblioteca padrão depois de possuir assinatura e semântica documentadas, paridade entre o interpretador bootstrap e as VMs Python/C aplicáveis, limites explícitos, testes positivos/negativos e exemplo executável. Não duplicar implementação de runtime em módulos GP quando a primitiva ainda depende de suporte nativo.
+
+## Integração híbrida opcional
+
+- python.gp: wrappers GP para a allowlist Python (math, statistics, hashlib, unicodedata, textwrap). Exige runtime híbrido com --python-interop; consulte docs/PYTHON_INTEROP.md.
