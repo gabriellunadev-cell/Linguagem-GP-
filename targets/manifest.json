@@ -15,6 +15,22 @@
       "runtime_test": "QEMU qemu-aarch64 -L /usr/aarch64-linux-gnu",
       "validation_date": "2026-11-15",
       "validation": "Rebuilt from current source; same modular GP bytecode executed by QEMU and host x86_64 VM; exact output: Resultado do módulo: 42"
+    },
+    {
+      "id": "windows-x64",
+      "triple": "x86_64-w64-mingw32",
+      "toolchain": "MSYS2 UCRT64 MinGW-w64 GCC on GitHub Actions windows-latest",
+      "status": "runtime_verified_on_windows_ci",
+      "compiler": "mingw-w64-ucrt-x86_64-gcc",
+      "artifact": null,
+      "artifact_id": 14188530982,
+      "artifact_archive_sha256": "5f37362997300e40b978fe6a077358ccb3b3ff4c175c9aab6f9e872205f27753",
+      "workflow_run_id": 43780443476,
+      "workflow_run": "https://github.com/gabriellunadev-cell/Linguagem-GP-/actions/runs/43780443476",
+      "runtime_test": "GitHub Actions windows-latest; native VM compiled and executed a modular GP project",
+      "validation_date": "2026-11-16",
+      "validation": "Build completed; compile/run with --self-hosted, native runner, native encoder and --run-vm native; exact output: Resultado do módulo: 42; marker GP_WINDOWS_X64_RUNTIME_OK",
+      "artifact_name": "gp-windows-x64-runtime-validation"
     }
   ],
   "historically_runtime_verified_targets": [
@@ -30,21 +46,7 @@
       "current_session": "Not rerun in this session; runtime binding and WASI zlib prefix unavailable"
     }
   ],
-  "cross_compiled_targets": [
-    {
-      "id": "windows-x64",
-      "triple": "x86_64-w64-mingw32",
-      "toolchain": "MinGW-w64 GCC",
-      "status": "cross_compiled_not_runtime_tested",
-      "compiler": "x86_64-w64-mingw32-gcc",
-      "artifact": "build/gpvm-native-windows.exe",
-      "sha256": "459d75d42c1c75c5550a778af2177a6b4be6965b0304ad33aac7cdf9d7e80083",
-      "link": "Static zlib; imports KERNEL32.dll and msvcrt.dll",
-      "ci_workflow": ".github/workflows/windows-native-runtime.yml",
-      "ci_workflow_status": "Workflow published; first windows-latest build succeeded but runtime smoke exposed unsupported parent-directory fsync; portability fix and regression test committed; awaiting rerun",
-      "validation_date": "2026-11-15"
-    }
-  ],
+  "cross_compiled_targets": [],
   "planned_targets": [
     {
       "id": "android-arm64",

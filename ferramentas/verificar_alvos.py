@@ -67,11 +67,18 @@ def enrich(target: dict) -> dict:
     artifact_path = target.get("artifact")
     artifact = (ROOT / artifact_path) if artifact_path else None
     runtime_state = runtime_available(target) if target.get("runtime_test") else None
+    remote_artifact = bool(target.get("artifact_id") and target.get("workflow_run"))
+    remote_runtime = bool(
+        target.get("status") == "runtime_verified_on_windows_ci"
+        and remote_artifact
+    )
     return {
         **target,
         "toolchain_available": bool(compiler),
         "compiler_path": compiler,
         "artifact_exists": bool(artifact and artifact.is_file()),
+        "remote_artifact_exists": remote_artifact,
+        "remote_runtime_verified": remote_runtime,
         **({"runtime_available": runtime_state} if runtime_state is not None else {}),
     }
 
@@ -113,18 +120,31 @@ def main() -> int:
         ):
             for item in items:
                 compiler_state = "toolchain available" if item["toolchain_available"] else "toolchain missing"
-                artifact_state = "artifact present" if item["artifact_exists"] else "artifact absent"
-                runtime_state = (
-                    "; runtime available" if item.get("runtime_available") is True
-                    else "; runtime unavailable" if item.get("runtime_available") is False
-                    else ""
+                artifact_state = (
+                    "remote CI artifact present" if item.get("remote_artifact_exists")
+                    else "local artifact present" if item["artifact_exists"]
+                    else "artifact absent"
                 )
+                if item.get("remote_runtime_verified"):
+                    runtime_state = "; runtime verified on windows-latest CI (not local to this host)"
+                else:
+                    runtime_state = (
+                        "; local runtime available" if item.get("runtime_available") is True
+                        else "; local runtime unavailable" if item.get("runtime_available") is False
+                        else ""
+                    )
                 print(f"{group_name} {item['id']}: {item['status']}; {compiler_state}; {artifact_state}{runtime_state}")
+    def runtime_evidence_complete(item: dict) -> bool:
+        if item.get("remote_runtime_verified"):
+            return bool(item["toolchain_available"] and item["remote_artifact_exists"])
+        return bool(
+            item["toolchain_available"]
+            and item["artifact_exists"]
+            and item.get("runtime_available") is True
+        )
+
     cross_artifacts_ready = all(
-        item["toolchain_available"]
-        and item["artifact_exists"]
-        and item.get("runtime_available") is True
-        for item in runtime_verified
+        runtime_evidence_complete(item) for item in runtime_verified
     ) and all(
         item["toolchain_available"] and item["artifact_exists"]
         for item in cross_compiled

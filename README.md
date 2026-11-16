@@ -1,6 +1,6 @@
 # GP — Gabriel Programming
 
-> GP 0.8.52: revalidação integrada na VPS em 2026-11-15; make validate aprovado, 297/297 testes, zero falhas/skips; corpus diferencial 6/6; fuzz 64 sem divergências. Linux x86_64 validado; Linux ARM64 executado via QEMU; Windows x64 cross-compilado; primeiro job identificou e motivou correção de fsync, reteste real pendente; Android NDK/Bionic e WASI não foram reexecutados nesta rodada. GP Programinha typecheck/build aprovados e integração HTTP local 7/7. Autohospedagem integral continua pendente. Consulte ENGINEERING_STATUS.md e docs/MULTIPLATFORM.md.
+> GP 0.8.52: revalidação integrada na VPS em 2026-11-15; make validate aprovado, 297/297 testes, zero falhas/skips; corpus diferencial 6/6; fuzz 64 sem divergências. Linux x86_64 validado; Linux ARM64 executado via QEMU; Windows x64 runtime verificado em windows-latest; projeto modular executado com saída 42; Android NDK/Bionic e WASI não foram reexecutados nesta rodada. GP Programinha typecheck/build aprovados e integração HTTP local 7/7. Autohospedagem integral continua pendente. Consulte ENGINEERING_STATUS.md e docs/MULTIPLATFORM.md.
 
 Linguagem proprietária do projeto Gabriel Luna, com prioridade de desenvolvimento e execução no Android ARM64.
 
@@ -23,7 +23,7 @@ A GP permanece em versão 0.x enquanto os portões de estabilidade do documento 
 
 ## Estado atual
 
-**GP Core 0.4 + toolchain nativo experimental: 281 testes aprovados na VPS; GC iterativo; compilação nativa de arquivo único e de projetos com imports; resolvedor de grafo executado em GP; biblioteca matemática; prova de bootstrap N→N+1→N+2 persistida. Autohospedagem integral e validação Android/Windows/WASI em runtimes reais ainda pendentes.**
+**GP Core 0.4 + toolchain nativo experimental: 297 testes aprovados na VPS; GC iterativo; compilação nativa de arquivo único e projetos com imports; resolvedor de grafo; biblioteca matemática; Linux x86_64 validado; Linux ARM64 executado via QEMU; Windows x64 executado no GitHub Actions windows-latest. Android NDK/Bionic e WASI continuam pendentes de validação nesta matriz; autohospedagem integral permanece em desenvolvimento.**
 
 Existem três caminhos no projeto:
 

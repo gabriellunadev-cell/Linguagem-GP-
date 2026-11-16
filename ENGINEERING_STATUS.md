@@ -15,8 +15,8 @@ Versão de linguagem mantida: GP 0.8.52.
 - Fuzz determinístico: 64 iterações; 38 rejeições; 26 entradas aceitas/executadas; zero divergências.
 - SHA-256 de todos os fixtures GP-IR e git diff --check aprovados.
 - Linux AArch64: VM recompilada e executada sob QEMU contra o mesmo projeto modular usado pelo host x86_64; saída Resultado do módulo: 42.
-- Windows x64: PE32+ cross-compilado; imports observados KERNEL32.dll e msvcrt.dll; execução real em windows-latest ainda pendente.
-- Primeiro job Windows real: compilação PE32+ passou; smoke test revelou que Windows retorna Permission denied ao tentar fsync no diretório pai após os.replace. Correção aplicada para manter fsync do arquivo e pular somente o fsync de diretório no Windows; teste de regressão incluído; novo job pendente.
+- Windows x64: runtime real aprovado no GitHub Actions windows-latest; VM compilada, projeto modular executado e saída Resultado do módulo: 42; artefato gp-windows-x64-runtime-validation publicado (ID 14188530982).
+- Correção validada no runner Windows: manter fsync do arquivo, executar os.replace e pular somente o fsync do diretório pai no Windows; teste de regressão incluído. Run: https://github.com/gabriellunadev-cell/Linguagem-GP-/actions/runs/43780443476
 - WASI não repetido: prefixo zlib WASI e runtime Wasmtime indisponíveis nesta VPS.
 - Android NDK/Bionic não testado nesta rodada. Os resultados Android/Termux históricos permanecem registrados nas seções posteriores e não são substituídos por QEMU Linux.
 
@@ -31,11 +31,10 @@ Versão de linguagem mantida: GP 0.8.52.
 
 ### Pendências explícitas
 
-1. Publicar a branch de evolução para acionar a execução Windows real pelo workflow .github/workflows/windows-native-runtime.yml.
-2. Validar visualmente o GP Programinha em navegador real antes de remover o Draft dos PRs.
-3. Repetir a validação do alvo Android com Android NDK/Bionic e dispositivo/Termux; não inferir isso a partir do QEMU.
-4. Reproduzir WASI preview1 em ambiente com Clang/WASI SDK, zlib WASI e Wasmtime.
-5. Continuar a migração do caminho auto-hospedado de imports para o linker AST/GP-MODULE-GRAPH; não declarar autossuficiência integral do toolchain enquanto driver, seed e fronteira de filesystem mantiverem dependências do host Python.
+1. Validar visualmente o GP Programinha em navegador real antes de remover o Draft dos PRs.
+2. Repetir a validação do alvo Android com Android NDK/Bionic e dispositivo/Termux; não inferir isso a partir do QEMU.
+3. Reproduzir WASI preview1 em ambiente com Clang/WASI SDK, zlib WASI e Wasmtime.
+4. Continuar a migração do caminho auto-hospedado de imports para o linker AST/GP-MODULE-GRAPH; não declarar autossuficiência integral do toolchain enquanto driver, seed e fronteira de filesystem mantiverem dependências do host Python.
 
 A execução atual não realizou make bootstrap-proof; a prova N→N+1→N+2 já registrada anteriormente não deve ser apresentada como se tivesse sido repetida nesta sessão. Nenhuma release 1.0.0 foi declarada.
 
@@ -508,7 +507,7 @@ Nenhum commit, push, tag ou release foi criado. Nenhuma infraestrutura GPTV foi 
 - Bootstrap estrito reexecutado: `BOOTSTRAP_PROOF_OK`. N SHA-256 `57660e55b887b7f03bf3593dfc9be0dc9f4cd5e3a2fdfc70f03d39486df4c6e8`; N+1 e N+2 SHA-256 `748479fc9dc6fe8655fd86114665effa0fcc9eed9749129faa130501aea1f45f`, 23.210 bytes cada; igualdade byte a byte confirmada. `proof.json` status `passed`; ambos relatórios de memória status `ok`.
 - Teto de heap 268.435.456 B (256 MiB). N→N+1: pico 83.668.858 B, RSS pico 99.053.568 B. N+1→N+2: pico 83.761.128 B, RSS pico 98.824.192 B. Cada estágio: 1.057 coletas GC, 6.114.541 objetos alocados, 6.005.192 liberados e 2.577.882.645 bytes recuperados.
 - Linux AArch64 recompilado e executado via QEMU com projeto GP modular; saída `Resultado do módulo: 42`. O mesmo bytecode executou no host Linux x86_64 com saída idêntica.
-- Windows x64: PE32+ cross-compilado; zlib estático; imports `KERNEL32.dll` e `msvcrt.dll`; SHA-256 `d4d6fa55ce3fc6a0b2804df809f1dd102a1c5741931c63d2274085a9f7cab74d`. Runtime Windows real continua pendente. Workflow Windows preparado e YAML validado, mas ainda não publicado/executado.
+- Windows x64 (snapshot histórico de 2026-11-09): PE32+ cross-compilado; zlib estático; imports KERNEL32.dll e msvcrt.dll; SHA-256 d4d6fa55ce3fc6a0b2804df809f1dd102a1c5741931c63d2274085a9f7cab74d. Naquela data o runtime real ainda estava pendente; a validação foi concluída em 2026-11-16, conforme a seção de revalidação integrada no topo deste documento.
 - WASI: há stdout de smoke test anterior no workspace e evidência histórica Wasmtime 50.0.1 registrada; não foi repetido no `make validate` desta sessão. Manifesto o classifica como validação histórica, não como nova prova desta sessão.
 - Android ARM64 continua pendente de build Bionic/NDK e execução em dispositivo Android. Linux AArch64 não é prova de compatibilidade Android.
 - Manifesto `targets/manifest.json`, matriz `docs/MULTIPLATFORM.md`, README e workflows foram reconciliados com as evidências. JSON/YAML validados e `git diff --check` aprovado.

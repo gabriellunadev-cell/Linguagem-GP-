@@ -8,7 +8,7 @@ Revalidado em 2026-11-15 na VPS Linux x86_64. O estado de cada alvo é classific
 |---|---|---|
 | Linux x86_64 | **Host validado** | GCC; suíte completa de 297 testes sem falhas ou skips; projeto modular executado pelo runtime C |
 | Linux AArch64 | **Runtime verificado via QEMU** | ELF AArch64 reconstruído; mesmo bytecode modular executado por QEMU; saída Resultado do módulo: 42 |
-| Windows x64 | **Cross-compilado; runtime real em correção** | A primeira execução em windows-latest compilou o PE32+, mas revelou que o Python não permite fsync de diretório; correção multiplataforma aplicada, aguardando novo job Windows |
+| Windows x64 | **Runtime verificado no windows-latest** | VM C compilada e executada no runner Windows; o projeto modular gerou a saída Resultado do módulo: 42; artefato CI publicado |
 | WebAssembly WASI preview1 | **Verificação histórica; não repetida nesta rodada** | Existe evidência anterior de execução com Wasmtime 50.0.1 em 2026-11-08; runtime e prefixo zlib WASI não disponíveis nesta VPS |
 | Android arm64 | **Validação NDK/Bionic pendente nesta VPS** | Registros anteriores de validação Termux/ARM64 existem, mas esta rodada não usou Android NDK nem executou em dispositivo Android; QEMU Linux não comprova Bionic |
 
@@ -20,7 +20,7 @@ Revalidado em 2026-11-15 na VPS Linux x86_64. O estado de cada alvo é classific
 - Fuzz determinístico: 64 iterações, seed 0x47505632, 38 rejeições, 26 entradas aceitas/executadas e zero divergências.
 - SHA-256 de todos os fixtures GP-IR: aprovados; git diff --check: aprovado.
 - Linux x86_64 e Linux AArch64 via QEMU executaram o mesmo build/cross-target-module-smoke.gbc; ambos produziram Resultado do módulo: 42.
-- PE Windows x64 compilado com sucesso. Os imports foram inspecionados; isso comprova formato/linkagem, não execução no Windows.
+- Windows x64: runtime real aprovado no GitHub Actions em windows-latest. A VM compilou, o projeto modular executou e a saída foi Resultado do módulo: 42. Run 43780443476; artefato gp-windows-x64-runtime-validation (ID 14188530982).
 - GP Programinha: npm run typecheck e npm run build aprovados; Vite transformou 1.578 módulos.
 - Integração HTTP local: 7/7 verificações aprovadas (health, compile/run de projeto modular, traversal, import em arquivo único, preflight CORS do PWA e Host não autorizado).
 - O WASI runtime foi ignorado por ausência do prefixo de zlib WASI e do binding/runtime Wasmtime nesta VPS. A validação Android NDK/Bionic também não foi executada.
@@ -31,7 +31,7 @@ Revalidado em 2026-11-15 na VPS Linux x86_64. O estado de cada alvo é classific
 |---|---|
 | build/gpvm-native (Linux x86_64) | 02e3a38567dea2c85830be44eac7d975eedfa95146013fe568e910e1c8adbdd5 |
 | build/gpvm-native-linux-arm64 | 2e3ec0fc9b3a2a2d43dec71ec4663367595e524d8e5dff421f636aef8833065d |
-| build/gpvm-native-windows.exe | 459d75d42c1c75c5550a778af2177a6b4be6965b0304ad33aac7cdf9d7e80083 |
+| build/gpvm-native-windows.exe (cross-build local MinGW) | 459d75d42c1c75c5550a778af2177a6b4be6965b0304ad33aac7cdf9d7e80083 |
 | build/cross-target-module-smoke.gbc | 0c9cb71ae5d473a29d0f5c9c9d5d3cd01c97623622a99968d546711f2f66c651 |
 
 ## Reproduzir Linux AArch64 e Windows x64
@@ -48,7 +48,7 @@ O alvo gera build/gpvm-native-linux-arm64 e build/gpvm-native-windows.exe, compi
 
 O workflow .github/workflows/windows-native-runtime.yml prepara MinGW UCRT64, compila a VM no runner windows-latest, compila o mesmo projeto GP modular e executa a VM nativa Windows. O job deve terminar com GP_WINDOWS_X64_RUNTIME_OK e publica os artefatos de validação.
 
-**Estado do workflow nesta revisão:** workflow publicado e executado em windows-latest. A compilação do PE32+ passou; a primeira execução do projeto falhou ao tentar abrir o diretório pai para fsync (Permission denied). A correção agora sincroniza o arquivo, usa os.replace para a troca atômica e ignora somente o fsync de diretório no Windows, que não oferece o mesmo descritor POSIX. Um teste de regressão foi adicionado. O alvo só será marcado como runtime verificado após o novo job Windows concluir com sucesso.
+**Estado do workflow nesta revisão:** runtime Windows verificado com sucesso em windows-latest. A primeira execução encontrou a incompatibilidade de fsync de diretório; o código foi corrigido mantendo o fsync do arquivo e a substituição atômica. A segunda execução passou e publicou o artefato. Evidência: https://github.com/gabriellunadev-cell/Linguagem-GP-/actions/runs/43780443476 (job Windows x64 native VM execution; marcador GP_WINDOWS_X64_RUNTIME_OK).
 
 ## Reproduzir WASI preview1
 
