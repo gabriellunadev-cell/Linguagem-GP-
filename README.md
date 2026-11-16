@@ -1,12 +1,12 @@
 # GP — Gabriel Programming
 
-> GP 0.8.52 validada no Termux/Android ARM64: 245 testes (238 da linguagem + 7 do GP Bridge), corpus diferencial 6/6, fuzz 64 sem divergências e bootstrap N→N+1→N+2 reproduzível (N+1 == N+2, SHA-256 registrado). A biblioteca inicial inclui `unir_textos(lista texto)` e serialização GP-IR em lote. A autohospedagem integral ainda é um objetivo, não um recurso concluído. Consulte ENGINEERING_STATUS.md e docs/RELEASE_CRITERIA_1.0.0.md.
+> GP 0.8.52: revalidação integrada na VPS em 2026-11-15; make validate aprovado, 296/296 testes, zero falhas/skips; corpus diferencial 6/6; fuzz 64 sem divergências. Linux x86_64 validado; Linux ARM64 executado via QEMU; Windows x64 cross-compilado (runtime real pendente); Android NDK/Bionic e WASI não foram reexecutados nesta rodada. GP Programinha typecheck/build aprovados e integração HTTP local 7/7. Autohospedagem integral continua pendente. Consulte ENGINEERING_STATUS.md e docs/MULTIPLATFORM.md.
 
 Linguagem proprietária do projeto Gabriel Luna, com prioridade de desenvolvimento e execução no Android ARM64.
 
 ## Estado de engenharia
 
-O CLI separa a VM que executa o frontend auto-hospedado (`--runner-vm`) da VM que executa o programa compilado (`--run-vm`). O modo nativo pode usar a VM C para o runner, o encoder GGPC v2 e a execução do alvo. A fonte do runner e o GP-IR do encoder são transmitidos por stdin com limites explícitos, sem arquivos temporários de texto. A orquestração, a resolução de módulos e a geração inicial do artefato bootstrap ainda têm dependências Python; a autohospedagem integral não foi concluída.
+O CLI separa a VM que executa o frontend auto-hospedado (`--runner-vm`) da VM que executa o programa compilado (`--run-vm`). O modo nativo pode usar a VM C para o runner, o encoder GGPC v2 e a execução do alvo. Para arquivos únicos sem imports, `scripts/gpc-native` executa frontend GP + VM C + encoder C sem iniciar Python. A geração inicial do runner, o driver CLI de compatibilidade e a leitura/validação do grafo de módulos ainda dependem do host Python; a autohospedagem integral não foi concluída.
 
 ## Especificações e estabilidade
 
@@ -14,6 +14,8 @@ O CLI separa a VM que executa o frontend auto-hospedado (`--runner-vm`) da VM qu
 - [Bytecode v2](docs/BYTECODE_V2_SPEC.md): contêiner binário e envelope.
 - [Critérios da versão 1.0.0](docs/RELEASE_CRITERIA_1.0.0.md): requisitos verificáveis para estabilização e release.
 - [Plano de autossuficiência](docs/SELF_HOSTING.md): diagnóstico e etapas para eliminar a dependência de Python do toolchain.
+- [Resolução de módulos em GP](docs/GP_MODULE_RESOLVER.md): migração gradual do grafo de imports.
+- [Alvos multiplataforma](docs/MULTIPLATFORM.md): estado verificado e requisitos Android, Windows e WASI.
 
 A GP permanece em versão 0.x enquanto os portões de estabilidade do documento 1.0.0 não forem satisfeitos.
 - [GP Host Input](docs/GP_HOST_INPUT_SPEC.md): entrada textual explícita fornecida pelo host.
@@ -21,7 +23,7 @@ A GP permanece em versão 0.x enquanto os portões de estabilidade do documento 
 
 ## Estado atual
 
-**GP Core 0.4 + toolchain nativo experimental (ciclo 0.8.52: 238 testes aprovados; `unir_textos` e serialização em lote implementados; prova de bootstrap otimizada em validação; autohospedagem integral ainda pendente).**
+**GP Core 0.4 + toolchain nativo experimental: 281 testes aprovados na VPS; GC iterativo; compilação nativa de arquivo único e de projetos com imports; resolvedor de grafo executado em GP; biblioteca matemática; prova de bootstrap N→N+1→N+2 persistida. Autohospedagem integral e validação Android/Windows/WASI em runtimes reais ainda pendentes.**
 
 Existem três caminhos no projeto:
 

@@ -196,7 +196,10 @@ class SemanticAnalyzer:
         if node.line is not None:
             self.current_location = (node.line, node.column or 1)
         kind, args = node.kind, node.args
-        if kind in ("empty", "struct", "import"):
+        if kind == "import":
+            self._error("Importação GP não resolvida pelo linker AST")
+            return
+        if kind in ("empty", "struct"):
             return
         if kind == "declare":
             typ, element_type, name, expr = args

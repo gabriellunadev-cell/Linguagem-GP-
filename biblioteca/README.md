@@ -13,7 +13,7 @@ Consulte [GP_STANDARD_LIBRARY.md](../docs/GP_STANDARD_LIBRARY.md). A primeira su
 - `mostrar(...)` como instrução da linguagem
 - `entrada_fonte()` como intrínseco reservado ao frontend auto-hospedado
 
-O exemplo executável está em [biblioteca_padrao.gp](../exemplos/biblioteca_padrao.gp).
+O exemplo executável está em [biblioteca_padrao.gp](../exemplos/biblioteca_padrao.gp). Funções matemáticas puras adicionais estão no módulo [matematica.gp](matematica.gp).
 
 ## Política
 

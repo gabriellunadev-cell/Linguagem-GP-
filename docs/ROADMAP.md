@@ -383,3 +383,30 @@ A linha de base da VM C e do frontend auto-hospedado está em `docs/PERFORMANCE_
 - [ ] Usar os resultados para priorizar novas otimizações do frontend e da VM nativa.
 
 **Status:** otimização, suíte completa e bootstrap reproduzível aprovados no Termux/Android ARM64. A comparação quantitativa com o baseline anterior permanece pendente; não declarar melhoria global de desempenho antes dela.
+
+### Revalidação no provedor/VPS x86_64 — 2026-11-08
+
+- [x] `make validate`: 273 testes aprovados; corpus diferencial 6/6 nas seis dimensões; fuzz 64, 38 rejeições, 26 execuções aceitas e zero divergências.
+- [x] `make check` repetido após limpeza dos avisos C; Python e GCC `-Wall -Wextra -Wpedantic` aprovados.
+- [x] Bootstrap nativo N→N+1→N+2: `BOOTSTRAP_PROOF_OK`; N+1 e N+2 idênticos, SHA-256 `6ced6b6e03f7d9978eb13d3919591bd3ec8fefd8046f7d73600b78ea4055ab72`.
+- [x] Memória abaixo do teto de 256 MiB: heap pico 75,56/75,65 MiB e RSS pico 92,44/92,38 MiB nos dois estágios.
+- [x] Telemetria reprodutível do GC: 1.053 ciclos por estágio, 6.090.845 objetos alocados, 5.981.870 liberados e 2,384 GiB cumulativos recuperados.
+- [x] Avaliação do limiar de 4 MiB: ganho pequeno no microbenchmark, mas apenas 1,1% menos coletas no frontend completo e pico de heap quase 1,8× maior; manter 1 MiB como padrão.
+- [x] GP Bridge pública validada por TLS, redirecionamento HTTPS e Basic Auth; health local HTTP 200.
+- [ ] Comparar desempenho com baseline medido na mesma arquitetura e hardware; não comparar diretamente esta VPS x86_64 ao baseline Android ARM64.
+
+**Nota de escopo:** a execução confirma reprodutibilidade de duas gerações com a VM C, não autossuficiência integral. O artefato seed N ainda é preparado pelo bootstrap Python, e a orquestração/materialização GP-IR ainda mantém dependências do host.
+
+### Seis frentes — ciclo concluído na VPS x86_64 — 2026-11-08
+
+- [x] GC iterativo sem recursão C; teste de cadeia de 100.000 arrays, com marcação e sweep completos.
+- [x] Parser GP aceita cabeçalho `programa "título"` e o trata como metadado sem instrução de runtime.
+- [x] `scripts/gpc-native` e `make compile-selfhosted-native` compilam arquivo GP sem iniciar Python, usando frontend GP + VM C + encoder C. Smoke test gerou bytecode e executou `Soma: 15` e `Fatorial: 120`.
+- [x] Primeiro resolvedor puro de grafo em GP, com DFS, ordem topológica, deduplicação, ciclo, aliases, limite 128 e profundidade 32; validado por VM C.
+- [x] Módulo `biblioteca/matematica.gp` com quatro funções puras, testado em frontend GP e runtime C.
+- [x] Manifesto/verificador de toolchains e documentação multiplataforma; Linux x86_64 detectado. Android arm64, Windows x64 e WASI permanecem explicitamente não verificados por ausência de NDK, MinGW e WASI SDK.
+- [x] `make validate` final: exit code 0 em 115,08 s; 277 testes aprovados em 91,234 s; corpus 6/6; fuzz 64 sem divergências; checksums, `make targets` e `git diff --check` aprovados.
+- [x] Bootstrap estrito após o novo parser e GC iterativo: `BOOTSTRAP_PROOF_OK`; seed N `57660e55…df4c6e8`; N+1=N+2 `748479fc…aea1f45f`, 23.210 bytes, 303,58 s.
+- [x] Pico de heap 79,79/79,88 MiB e RSS 94,47/94,77 MiB, dentro do teto de 256 MiB; 1.057 ciclos de GC e 2,40 GiB cumulativos recuperados por estágio.
+
+**Limites restantes:** imports ainda precisam de integração ponta a ponta com o resolvedor GP; o caminho Python-free suporta apenas fonte única sem imports; bootstrap inicial ainda é produzido por Python; Android, Windows e WASI ainda não foram compilados e testados.

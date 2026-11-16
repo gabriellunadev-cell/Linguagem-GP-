@@ -68,7 +68,11 @@ class Lowerer:
 
     def statement(self, node):
         kind, args = node.kind, node.args
-        if kind in ("empty", "struct", "import"): return
+        if kind == "import":
+            raise ValueError(
+                "Importação GP precisa ser resolvida pelo linker AST antes do lowering"
+            )
+        if kind in ("empty", "struct"): return
         if kind == "function":
             name, params, return_type, body = args
             previous_code, previous_loops = self.code, self.loop_stack

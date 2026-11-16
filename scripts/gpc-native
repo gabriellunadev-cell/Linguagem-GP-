@@ -1,0 +1,34 @@
+#!/bin/sh
+# Python-free single-file GP compiler path: GP frontend runner + C VM/encoder.
+set -eu
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+VM=${GP_NATIVE_VM:-"$ROOT/build/gpvm-native"}
+RUNNER=${GP_BOOTSTRAP_RUNNER:-"$ROOT/artifacts/bootstrap/gp_frontend_runner.gbc"}
+MAX_STEPS=${GP_RUNNER_MAX_STEPS:-100000000}
+if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
+    echo "Uso: scripts/gpc-native arquivo.gp [saida.gbc]" >&2
+    exit 2
+fi
+SOURCE=$1
+OUTPUT=${2:-"${SOURCE%.*}.gbc"}
+[ -f "$SOURCE" ] || { echo "Fonte GP não encontrada: $SOURCE" >&2; exit 2; }
+[ -x "$VM" ] || { echo "VM nativa não encontrada/executável: $VM (use make native-vm)" >&2; exit 2; }
+[ -f "$RUNNER" ] || { echo "Runner GP ausente: $RUNNER (use make bootstrap-runner)" >&2; exit 2; }
+case "$MAX_STEPS" in ''|*[!0-9]*) echo "GP_RUNNER_MAX_STEPS precisa ser inteiro positivo" >&2; exit 2;; esac
+[ "$MAX_STEPS" -ge 1 ] && [ "$MAX_STEPS" -le 100000000 ] || { echo "GP_RUNNER_MAX_STEPS fora do limite 1..100000000" >&2; exit 2; }
+TMP=$(mktemp -d "${TMPDIR:-/tmp}/gp-native-compile.XXXXXX")
+trap 'rm -rf "$TMP"' EXIT HUP INT TERM
+if ! "$VM" "$RUNNER" --max-steps "$MAX_STEPS" --source-input "$SOURCE" >"$TMP/frontend.out" 2>"$TMP/frontend.err"; then
+    cat "$TMP/frontend.err" >&2
+    exit 1
+fi
+STATUS=$(grep -m 1 '^GP-SELFHOSTED-STATUS:' "$TMP/frontend.out" || true)
+[ -n "$STATUS" ] || { echo "Frontend GP não emitiu status" >&2; exit 1; }
+case "$STATUS" in
+    *" true true true"|*" verdadeiro verdadeiro verdadeiro") ;;
+    *) echo "$STATUS" >&2; grep '^GP-SELFHOSTED-ERROR:' "$TMP/frontend.out" >&2 || true; exit 1;;
+esac
+sed -n 's/^GP-SELFHOSTED-IR-CANONICAL:[[:space:]]*//p' "$TMP/frontend.out" > "$TMP/program.gp-ir.json"
+[ -s "$TMP/program.gp-ir.json" ] || { echo "Frontend GP não emitiu GP-IR canônico" >&2; exit 1; }
+mkdir -p "$(dirname -- "$OUTPUT")"
+"$VM" --encode-ir - "$OUTPUT" < "$TMP/program.gp-ir.json"

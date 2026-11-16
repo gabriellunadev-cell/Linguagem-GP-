@@ -1,8 +1,10 @@
 import json
+import os
 import threading
 import unittest
 import urllib.error
 import urllib.request
+from unittest.mock import patch
 
 from gp_ide_server import (
     GPBridgeHandler,
@@ -12,6 +14,7 @@ from gp_ide_server import (
     MAX_REQUEST_BYTES,
     execute_project,
     execute_source,
+    allowed_hosts,
     allowed_origins,
     validate_payload,
     validate_project_payload,
@@ -19,6 +22,18 @@ from gp_ide_server import (
 
 
 class GPBridgeTests(unittest.TestCase):
+    def test_allowed_hosts_default_to_loopback(self):
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(allowed_hosts(), {"127.0.0.1", "localhost"})
+
+    def test_allowed_hosts_normalize_explicit_configuration(self):
+        with patch.dict(os.environ, {"GP_BRIDGE_HOSTS": " localhost, GP.GPTV.ONLINE ,,127.0.0.1 "}):
+            self.assertEqual(allowed_hosts(), {"localhost", "gp.gptv.online", "127.0.0.1"})
+
+    def test_allowed_hosts_fail_closed_for_empty_explicit_list(self):
+        with patch.dict(os.environ, {"GP_BRIDGE_HOSTS": " , , "}):
+            self.assertEqual(allowed_hosts(), set())
+
     def test_bridge_binds_to_loopback_only(self):
         self.assertEqual(DEFAULT_HOST, "127.0.0.1")
 
@@ -212,6 +227,33 @@ class GPBridgeHTTPTests(unittest.TestCase):
         self.assertTrue(body["ok"])
         self.assertTrue(body["projectApi"])
         self.assertEqual(body["bridgeVersion"], "0.2")
+
+    def test_configured_public_host_is_accepted_over_real_http(self):
+        request = urllib.request.Request(
+            self.base_url + "/api/health",
+            headers={"Host": "gp.gptv.online", "Origin": "https://gp.gptv.online"},
+        )
+        environment = {
+            "GP_BRIDGE_HOSTS": "127.0.0.1,localhost,gp.gptv.online",
+            "GP_BRIDGE_ORIGINS": "https://gp.gptv.online",
+        }
+        with patch.dict(os.environ, environment):
+            with urllib.request.urlopen(request, timeout=8) as response:
+                self.assertEqual(response.status, 200)
+                self.assertEqual(
+                    response.headers.get("Access-Control-Allow-Origin"),
+                    "https://gp.gptv.online",
+                )
+
+    def test_unconfigured_public_host_is_rejected_over_real_http(self):
+        request = urllib.request.Request(
+            self.base_url + "/api/health",
+            headers={"Host": "attacker.invalid"},
+        )
+        with patch.dict(os.environ, {}, clear=True):
+            with self.assertRaises(urllib.error.HTTPError) as context:
+                urllib.request.urlopen(request, timeout=8)
+        self.assertEqual(context.exception.code, 403)
 
     def test_vite_dev_origin_preflight_over_real_http(self):
         request = urllib.request.Request(

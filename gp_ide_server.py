@@ -31,6 +31,15 @@ RUN_TIMEOUT_SECONDS = 10
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
 ALLOWED_HOSTS = {"127.0.0.1", "localhost"}
+
+
+def allowed_hosts() -> set[str]:
+    configured = os.environ.get("GP_BRIDGE_HOSTS")
+    if not configured:
+        return set(ALLOWED_HOSTS)
+    return {item.strip().lower() for item in configured.split(",") if item.strip()}
+
+
 DEFAULT_ORIGINS = {
     "http://localhost:5173",
     "http://127.0.0.1:5173",
@@ -324,7 +333,7 @@ class GPBridgeHandler(BaseHTTPRequestHandler):
 
     def _host_is_local(self) -> bool:
         hostname = urlsplit("//" + self.headers.get("Host", "")).hostname
-        return hostname in ALLOWED_HOSTS
+        return hostname is not None and hostname.lower() in allowed_hosts()
 
     def _origin_is_allowed(self) -> bool:
         origin = self.headers.get("Origin")

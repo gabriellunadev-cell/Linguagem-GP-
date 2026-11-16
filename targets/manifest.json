@@ -1,0 +1,61 @@
+{
+  "schema_version": 4,
+  "runtime": "gpvm_native.c",
+  "host_verified": [
+    "linux-x86_64"
+  ],
+  "runtime_verified_targets": [
+    {
+      "id": "linux-aarch64",
+      "triple": "aarch64-linux-gnu",
+      "toolchain": "GCC AArch64 cross compiler",
+      "status": "runtime_verified_under_qemu",
+      "compiler": "aarch64-linux-gnu-gcc",
+      "artifact": "build/gpvm-native-linux-arm64",
+      "runtime_test": "QEMU qemu-aarch64 -L /usr/aarch64-linux-gnu",
+      "validation_date": "2026-11-15",
+      "validation": "Rebuilt from current source; same modular GP bytecode executed by QEMU and host x86_64 VM; exact output: Resultado do módulo: 42"
+    }
+  ],
+  "historically_runtime_verified_targets": [
+    {
+      "id": "wasm32-wasi",
+      "triple": "wasm32-wasi",
+      "toolchain": "Clang 18 + WASI libc + static zlib",
+      "status": "historically_runtime_verified_under_wasmtime",
+      "artifact": "build/gpvm-native-wasi.wasm",
+      "runtime_test": "Wasmtime 50.0.1 WASI preview1",
+      "validation_date": "2026-11-08",
+      "validation": "Prior recorded modular GP project run returned Resultado do módulo: 42",
+      "current_session": "Not rerun in this session; runtime binding and WASI zlib prefix unavailable"
+    }
+  ],
+  "cross_compiled_targets": [
+    {
+      "id": "windows-x64",
+      "triple": "x86_64-w64-mingw32",
+      "toolchain": "MinGW-w64 GCC",
+      "status": "cross_compiled_not_runtime_tested",
+      "compiler": "x86_64-w64-mingw32-gcc",
+      "artifact": "build/gpvm-native-windows.exe",
+      "sha256": "459d75d42c1c75c5550a778af2177a6b4be6965b0304ad33aac7cdf9d7e80083",
+      "link": "Static zlib; imports KERNEL32.dll and msvcrt.dll",
+      "ci_workflow": ".github/workflows/windows-native-runtime.yml",
+      "ci_workflow_status": "Workflow present in feature branch and YAML-parsed locally; awaiting push and successful windows-latest execution",
+      "validation_date": "2026-11-15"
+    }
+  ],
+  "planned_targets": [
+    {
+      "id": "android-arm64",
+      "triple": "aarch64-linux-android",
+      "toolchain": "Android NDK LLVM clang",
+      "required_env": "ANDROID_NDK_HOME",
+      "status": "not_verified",
+      "blockers": [
+        "Android NDK/Bionic compilation and device runtime need validation",
+        "Android SDK license acceptance is required before NDK installation"
+      ]
+    }
+  ]
+}

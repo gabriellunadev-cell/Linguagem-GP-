@@ -3,8 +3,10 @@
  * Loads GP bytecode v2 directly: GGPC header + zlib JSON IR.
  * Build: clang -std=c11 -O2 gpvm_native.c -lz -o gpvm-native
  */
+#ifndef _WIN32
 #ifndef _POSIX_C_SOURCE
 #define _POSIX_C_SOURCE 200809L
+#endif
 #endif
 
 #include <errno.h>
@@ -15,8 +17,75 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <psapi.h>
+#include <io.h>
+#include <process.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#ifndef STDIN_FILENO
+#define STDIN_FILENO _fileno(stdin)
+#endif
+#define read _read
+#define write _write
+#define close _close
+#define unlink _unlink
+#define fsync _commit
+static int gp_windows_mkstemp(char *path) {
+    size_t length = strlen(path);
+    if (length < 6 || strcmp(path + length - 6, "XXXXXX") != 0) {
+        errno = EINVAL;
+        return -1;
+    }
+    static const char alphabet[] = "0123456789abcdefghijklmnopqrstuvwxyz";
+    for (unsigned int attempt = 0; attempt < 256; attempt++) {
+        unsigned long value = GetTickCount() ^ GetCurrentProcessId() ^ (attempt * 2654435761UL);
+        for (size_t index = 0; index < 6; index++) {
+            path[length - 6 + index] = alphabet[value % (sizeof(alphabet) - 1)];
+            value = value / (sizeof(alphabet) - 1) + (value >> 3);
+        }
+        int descriptor = _open(path, _O_CREAT | _O_EXCL | _O_RDWR | _O_BINARY, _S_IREAD | _S_IWRITE);
+        if (descriptor >= 0) return descriptor;
+        if (errno != EEXIST) return -1;
+    }
+    errno = EEXIST;
+    return -1;
+}
+static int gp_windows_rename(const char *source, const char *destination) {
+    if (MoveFileExA(source, destination, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+        return 0;
+    errno = GetLastError() == ERROR_ACCESS_DENIED ? EACCES : EIO;
+    return -1;
+}
+#define mkstemp gp_windows_mkstemp
+#define rename gp_windows_rename
+#elif defined(__wasi__)
+#include <unistd.h>
+static int gp_wasi_mkstemp(char *path) {
+    size_t length = strlen(path);
+    if (length < 6 || strcmp(path + length - 6, "XXXXXX") != 0) { errno = EINVAL; return -1; }
+    static uint32_t sequence = 0;
+    static const char alphabet[] = "0123456789abcdefghijklmnopqrstuvwxyz";
+    for (unsigned int attempt = 0; attempt < 4096; attempt++) {
+        uint32_t value = ++sequence + attempt * 2654435761u;
+        for (size_t index = 0; index < 6; index++) {
+            path[length - 6 + index] = alphabet[value % 36u];
+            value = value / 36u + (value >> 5);
+        }
+        int descriptor = open(path, O_CREAT | O_EXCL | O_RDWR, 0600);
+        if (descriptor >= 0) return descriptor;
+        if (errno != EEXIST) return -1;
+    }
+    errno = EEXIST;
+    return -1;
+}
+#define mkstemp gp_wasi_mkstemp
+#else
 #include <sys/resource.h>
 #include <unistd.h>
+#endif
 #include <zlib.h>
 
 #define GP_MAX_PAYLOAD (64u * 1024u * 1024u)
@@ -138,13 +207,18 @@ typedef struct VMRoot VMRoot;
 enum { GP_GC_STRING = 1, GP_GC_ARRAY = 2, GP_GC_STRUCT = 3 };
 #define GP_GC_MAGIC 0x47504743u
 #define GP_GC_STRING_ASCII 1u
+#define GP_UTF8_INDEX_STRIDE 32u
 struct GPGCHeader {
     GPGCHeader *next;
+    GPGCHeader *mark_next;
     size_t size;
     unsigned int kind;
     unsigned int marked;
     unsigned int flags;
     uint32_t magic;
+    size_t *utf8_offsets;
+    size_t utf8_offset_count;
+    size_t utf8_codepoints;
 };
 struct VMRoot {
     Env *env;
@@ -167,6 +241,16 @@ typedef struct {
 } VM;
 
 static size_t gp_process_current_rss_bytes(void) {
+#ifdef _WIN32
+    PROCESS_MEMORY_COUNTERS counters;
+    memset(&counters, 0, sizeof(counters));
+    counters.cb = sizeof(counters);
+    if (!GetProcessMemoryInfo(GetCurrentProcess(), &counters, sizeof(counters))) return 0;
+    return (size_t)counters.WorkingSetSize;
+#elif defined(__wasi__)
+    /* WASI has no process RSS API; report zero and retain allocator telemetry. */
+    return 0;
+#else
     FILE *status = fopen("/proc/self/status", "r");
     if (!status) return 0;
     char line[256];
@@ -177,9 +261,19 @@ static size_t gp_process_current_rss_bytes(void) {
     fclose(status);
     if (rss_kib > SIZE_MAX / 1024u) return 0;
     return rss_kib * 1024u;
+#endif
 }
 
 static size_t gp_process_peak_rss_bytes(void) {
+#ifdef _WIN32
+    PROCESS_MEMORY_COUNTERS counters;
+    memset(&counters, 0, sizeof(counters));
+    counters.cb = sizeof(counters);
+    if (!GetProcessMemoryInfo(GetCurrentProcess(), &counters, sizeof(counters))) return 0;
+    return (size_t)counters.PeakWorkingSetSize;
+#elif defined(__wasi__)
+    return 0;
+#else
     struct rusage usage;
     memset(&usage, 0, sizeof(usage));
     if (getrusage(RUSAGE_SELF, &usage) != 0 || usage.ru_maxrss <= 0) return 0;
@@ -189,6 +283,7 @@ static size_t gp_process_peak_rss_bytes(void) {
 #else
     if ((uintmax_t)usage.ru_maxrss > SIZE_MAX / 1024u) return 0;
     return (size_t)usage.ru_maxrss * 1024u;
+#endif
 #endif
 }
 
@@ -209,15 +304,27 @@ static void gp_write_memory_report(const char *path, int ok, const VM *vm) {
         "  \"managed_payload_live_bytes\": %zu,\n"
         "  \"stack_peak_bytes\": %zu,\n"
         "  \"stack_live_bytes\": %zu,\n"
+        "  \"gc_collections\": %zu,\n"
+        "  \"gc_allocated_objects\": %zu,\n"
+        "  \"gc_freed_objects\": %zu,\n"
+        "  \"gc_reclaimed_bytes\": %zu,\n"
         "  \"process_rss_bytes\": %zu,\n"
         "  \"process_peak_rss_bytes\": %zu,\n"
+#ifdef _WIN32
+        "  \"process_memory_source\": \"Win32 WorkingSetSize + PeakWorkingSetSize\"\n}\n",
+#elif defined(__wasi__)
+        "  \"process_memory_source\": \"WASI process RSS unavailable; allocator counters only\"\n}\n",
+#else
         "  \"process_memory_source\": \"procfs VmRSS + getrusage ru_maxrss\"\n}\n",
+#endif
         ok ? "ok" : "error", (unsigned int)GP_MAX_HEAP_BYTES,
         gp_heap_peak, gp_heap_bytes,
         gp_alloc_category_peak[GP_ALLOC_NATIVE], gp_alloc_category_live[GP_ALLOC_NATIVE],
         gp_alloc_category_peak[GP_ALLOC_MANAGED], gp_alloc_category_live[GP_ALLOC_MANAGED],
         vm->gc_peak_bytes, vm->gc_bytes,
         gp_alloc_category_peak[GP_ALLOC_STACK], gp_alloc_category_live[GP_ALLOC_STACK],
+        vm->gc_collections, vm->gc_allocated_objects, vm->gc_freed_objects,
+        vm->gc_reclaimed_bytes,
         gp_process_current_rss_bytes(), gp_process_peak_rss_bytes());
     fclose(out);
 }
@@ -251,12 +358,7 @@ static GPGCHeader *gp_gc_header(const void *payload) {
     GPGCHeader *h = ((GPGCHeader *)payload) - 1;
     return h->magic == GP_GC_MAGIC ? h : NULL;
 }
-static void gp_gc_mark_value(Value value);
-static void gp_gc_mark_env(Env *env) {
-    if (!env) return;
-    for (size_t i = 0; i < env->len; i++) gp_gc_mark_value(env->values[i]);
-}
-static void gp_gc_mark_value(Value value) {
+static void gp_gc_mark_value(GPGCHeader **worklist, Value value) {
     void *payload = NULL;
     if (value.type == V_STRING) payload = value.string;
     else if (value.type == V_ARRAY) payload = value.array;
@@ -265,17 +367,33 @@ static void gp_gc_mark_value(Value value) {
     GPGCHeader *h = gp_gc_header(payload);
     if (!h || h->marked) return;
     h->marked = 1;
-    if (h->kind == GP_GC_ARRAY) {
-        Array *a = (Array *)payload;
-        for (size_t i = 0; i < a->len; i++) gp_gc_mark_value(a->items[i]);
-    } else if (h->kind == GP_GC_STRUCT) {
-        Struct *o = (Struct *)payload;
-        for (size_t i = 0; i < o->len; i++) gp_gc_mark_value(o->values[i]);
+    h->mark_next = *worklist;
+    *worklist = h;
+}
+static void gp_gc_mark_env(GPGCHeader **worklist, Env *env) {
+    if (!env) return;
+    for (size_t i = 0; i < env->len; i++) gp_gc_mark_value(worklist, env->values[i]);
+}
+static void gp_gc_drain_mark_worklist(GPGCHeader **worklist) {
+    while (*worklist) {
+        GPGCHeader *h = *worklist;
+        *worklist = h->mark_next;
+        h->mark_next = NULL;
+        void *payload = (void *)(h + 1);
+        if (h->kind == GP_GC_ARRAY) {
+            Array *a = (Array *)payload;
+            for (size_t i = 0; i < a->len; i++) gp_gc_mark_value(worklist, a->items[i]);
+        } else if (h->kind == GP_GC_STRUCT) {
+            Struct *o = (Struct *)payload;
+            for (size_t i = 0; i < o->len; i++) gp_gc_mark_value(worklist, o->values[i]);
+        }
     }
 }
 static void gp_gc_release(GPGCHeader *h) {
     void *payload = (void *)(h + 1);
-    if (h->kind == GP_GC_ARRAY) {
+    if (h->kind == GP_GC_STRING) {
+        free(h->utf8_offsets);
+    } else if (h->kind == GP_GC_ARRAY) {
         Array *a = (Array *)payload;
         free(a->items);
         free(a->element_type);
@@ -294,16 +412,21 @@ static void gp_gc_release(GPGCHeader *h) {
     free(h);
 }
 static void gp_gc_collect(VM *vm) {
-    for (GPGCHeader *h = vm->gc_objects; h; h = h->next) h->marked = 0;
-    gp_gc_mark_env(&vm->globals);
-    for (size_t i = 0; i < 128; i++) gp_gc_mark_value(vm->ascii_cache[i]);
+    GPGCHeader *worklist = NULL;
+    for (GPGCHeader *h = vm->gc_objects; h; h = h->next) {
+        h->marked = 0;
+        h->mark_next = NULL;
+    }
+    gp_gc_mark_env(&worklist, &vm->globals);
+    for (size_t i = 0; i < 128; i++) gp_gc_mark_value(&worklist, vm->ascii_cache[i]);
     for (VMRoot *r = vm->roots; r; r = r->next) {
-        gp_gc_mark_env(r->env);
+        gp_gc_mark_env(&worklist, r->env);
         if (r->stack && *r->stack && r->stack_len) {
             Value *stack = *r->stack;
-            for (size_t i = 0; i < *r->stack_len; i++) gp_gc_mark_value(stack[i]);
+            for (size_t i = 0; i < *r->stack_len; i++) gp_gc_mark_value(&worklist, stack[i]);
         }
     }
+    gp_gc_drain_mark_worklist(&worklist);
     GPGCHeader **link = &vm->gc_objects;
     while (*link) {
         GPGCHeader *h = *link;
@@ -410,7 +533,8 @@ static int valid_json_primitive(const char *s,size_t n) {
     return i==n;
 }
 static int utf8_decode_one(const unsigned char *s,size_t n,size_t *used,uint32_t *cp) {
-    if(!n)return 0; unsigned char a=s[0];
+    if (!n) return 0;
+    unsigned char a = s[0];
     if(a<0x80){*used=1;*cp=a;return 1;}
     if(a>=0xc2&&a<=0xdf&&n>=2&&(s[1]&0xc0)==0x80){*used=2;*cp=((uint32_t)(a&31)<<6)|(s[1]&63);return 1;}
     if(a>=0xe0&&a<=0xef&&n>=3&&(s[1]&0xc0)==0x80&&(s[2]&0xc0)==0x80){
@@ -429,6 +553,41 @@ static size_t utf8_length(const char *s) {
     size_t n=strlen(s),i=0,u=0,count=0;uint32_t cp=0;
     while(i<n){if(!utf8_decode_one((const unsigned char *)s+i,n-i,&u,&cp))return SIZE_MAX;i+=u;count++;}return count;
 }
+static int string_build_utf8_index(GPGCHeader *header, const char *s, size_t bytes) {
+    if (!header || !s) return 0;
+    if (header->utf8_offsets) return 1;
+    if (bytes == 0) {
+        header->utf8_codepoints = 0;
+        header->utf8_offset_count = 0;
+        return 1;
+    }
+    size_t capacity = bytes / GP_UTF8_INDEX_STRIDE +
+        (bytes % GP_UTF8_INDEX_STRIDE != 0);
+    if (capacity > SIZE_MAX / sizeof(size_t)) return 0;
+    unsigned int previous_category = gp_current_alloc_category;
+    gp_current_alloc_category = GP_ALLOC_MANAGED;
+    size_t *offsets = (size_t *)malloc(capacity * sizeof(size_t));
+    gp_current_alloc_category = previous_category;
+    if (!offsets) return 0;
+
+    size_t offset = 0, codepoint = 0, slots = 0;
+    while (offset < bytes) {
+        if (codepoint % GP_UTF8_INDEX_STRIDE == 0) offsets[slots++] = offset;
+        size_t used = 0;
+        uint32_t cp = 0;
+        if (!utf8_decode_one((const unsigned char *)s + offset, bytes - offset, &used, &cp)) {
+            free(offsets);
+            return 0;
+        }
+        offset += used;
+        codepoint++;
+    }
+    header->utf8_offsets = offsets;
+    header->utf8_offset_count = slots;
+    header->utf8_codepoints = codepoint;
+    return 1;
+}
+
 static int string_index_value(VM *vm, const char *s, size_t index, Value *out) {
     GPGCHeader *header = gp_gc_header(s);
     if (!header || header->kind != GP_GC_STRING || header->size == 0 || !out) return 0;
@@ -446,19 +605,43 @@ static int string_index_value(VM *vm, const char *s, size_t index, Value *out) {
         *out = cached;
         return 1;
     }
-    size_t offset = 0, codepoint = 0;
-    while (offset < bytes) {
+
+    /* Non-ASCII strings are indexed by Unicode code point. Cache byte offsets
+       every 32 code points so repeated indexing costs at most 31 decodes. */
+    if (!header->utf8_offsets && !string_build_utf8_index(header, s, bytes)) {
+        /* Preserve correctness under memory pressure: fall back to the linear
+           scan when the optional sparse index cannot be allocated. */
+        size_t offset = 0, codepoint = 0;
+        while (offset < bytes) {
+            size_t used = 0;
+            uint32_t cp = 0;
+            if (!utf8_decode_one((const unsigned char *)s + offset, bytes - offset, &used, &cp)) return 0;
+            if (codepoint == index) {
+                *out = string_value_bytes(vm, s + offset, used);
+                return out->string != NULL;
+            }
+            codepoint++;
+            offset += used;
+        }
+        return 0;
+    }
+    if (index >= header->utf8_codepoints) return 0;
+    size_t block = index / GP_UTF8_INDEX_STRIDE;
+    if (block >= header->utf8_offset_count) return 0;
+    size_t offset = header->utf8_offsets[block];
+    size_t codepoint = block * GP_UTF8_INDEX_STRIDE;
+    while (codepoint < index) {
         size_t used = 0;
         uint32_t cp = 0;
         if (!utf8_decode_one((const unsigned char *)s + offset, bytes - offset, &used, &cp)) return 0;
-        if (codepoint == index) {
-            *out = string_value_bytes(vm, s + offset, used);
-            return out->string != NULL;
-        }
-        codepoint++;
         offset += used;
+        codepoint++;
     }
-    return 0;
+    size_t used = 0;
+    uint32_t cp = 0;
+    if (!utf8_decode_one((const unsigned char *)s + offset, bytes - offset, &used, &cp)) return 0;
+    *out = string_value_bytes(vm, s + offset, used);
+    return out->string != NULL;
 }
 static int parse_json_value(Json *j, size_t *p, int depth) {
     skip_ws(j, p);
@@ -742,10 +925,19 @@ static int value_matches(const char *type, Value v) {
         if (!element_len || element_len >= sizeof(element_type)) return 0;
         memcpy(element_type, type + 6, element_len);
         element_type[element_len] = '\0';
-        if (v.array->element_type && strcmp(v.array->element_type, element_type) != 0) return 0;
+
+        /* A cached element_type is a runtime invariant: MAKE_TYPED_ARRAY,
+           parameter binding, and every mutating operation validate values
+           before publishing that metadata or changing an item. */
+        if (v.array->element_type) {
+            return strcmp(v.array->element_type, element_type) == 0;
+        }
         for (size_t i = 0; i < v.array->len; i++) {
             if (!value_matches(element_type, v.array->items[i])) return 0;
         }
+        char *cached_type = copy_string(element_type);
+        if (!cached_type) return 0;
+        v.array->element_type = cached_type;
         return 1;
     }
     if (strcmp(type, "vazio") == 0) return v.type == V_NULL;
@@ -806,8 +998,12 @@ static void env_destroy(Env *env) {
     memset(env,0,sizeof(*env));
 }
 static int array_validate_type(Array *a, const char *type) {
-    if (!type || !*type || strcmp(type, "null") == 0) return 1;
+    if (!a || !type || !*type || strcmp(type, "null") == 0) return a != NULL;
+    if (a->element_type) return strcmp(a->element_type, type) == 0;
     for (size_t i = 0; i < a->len; i++) if (!value_matches(type, a->items[i])) return 0;
+    char *cached_type = copy_string(type);
+    if (!cached_type) return 0;
+    a->element_type = cached_type;
     return 1;
 }
 static int env_store(Env *env, const char *name, Value value, VM *vm) {
@@ -855,7 +1051,9 @@ static void stack_release(Value *stack, size_t cap) {
     free(stack);
 }
 static int stack_pop(Value *stack, size_t *len, Value *out) {
-    if (!*len) return 0; *out = stack[--(*len)]; return 1;
+    if (!*len) return 0;
+    *out = stack[--(*len)];
+    return 1;
 }
 static int vm_pop(VM *vm, Value *stack, size_t *len, Value *out) {
     if (!stack_pop(stack, len, out)) { vm_error(vm, "pilha de execução vazia"); return 0; }
@@ -1138,15 +1336,9 @@ static int execute_code(VM *vm, int code, Env *local, int functions, int depth, 
                 free(name); free(type); free(element);
                 vm_error(vm, "tipo incompatível na declaração"); break;
             }
-            if (z.type == V_ARRAY && element) {
-                if (!z.array->element_type || strcmp(z.array->element_type, element) != 0) {
-                    free(z.array->element_type);
-                    z.array->element_type = copy_string(element);
-                }
-                if (!z.array->element_type || !array_validate_type(z.array, element)) {
-                    free(name); free(type); free(element);
-                    vm_error(vm, "elemento inválido no array tipado"); break;
-                }
+            if (z.type == V_ARRAY && element && !array_validate_type(z.array, element)) {
+                free(name); free(type); free(element);
+                vm_error(vm, "elemento inválido no array tipado"); break;
             }
             int declared = env_define(local, name, z, type, element);
             free(name); free(type); free(element);
@@ -1183,14 +1375,15 @@ static int execute_code(VM *vm, int code, Env *local, int functions, int depth, 
             typed->len = source->len;
             typed->cap = source->len;
             typed->items = source->len ? (Value *)malloc(source->len * sizeof(Value)) : NULL;
-            typed->element_type = copy_string(element);
-            if ((source->len && !typed->items) || !typed->element_type) {
+            if (source->len && !typed->items) {
                 free(element);
                 vm_error(vm, "memória insuficiente ao copiar array tipado"); break;
             }
             if (source->len) memcpy(typed->items, source->items, source->len * sizeof(Value));
             z.array = typed;
-            int elements_match = array_validate_type(typed, typed->element_type);
+            /* Validate before publishing the invariant metadata; otherwise a
+               fast-path type check could incorrectly trust unvalidated input. */
+            int elements_match = array_validate_type(typed, element);
             free(element);
             element = NULL;
             if (!elements_match) { vm_error(vm, "tipo de elemento inválido no array"); break; }
@@ -1328,7 +1521,10 @@ static uint16_t read_u16be(const unsigned char *p) { return (uint16_t)(((uint16_
 
 static int valid_opcode(const char *op) {
     static const char *ops[]={"CONST","LOAD","DECLARE","STORE","POP","BUILD_ARRAY","MAKE_TYPED_ARRAY","BUILD_STRUCT","GET_FIELD","SET_FIELD","GET_INDEX","SET_INDEX","NEG","NOT","ADD","SUB","MUL","DIV","MOD","EQ","NE","GT","LT","GE","LE","AND","OR","PRINT","JUMP","JUMP_IF_FALSE","CALL","RETURN"};
-    for(size_t i=0;i<sizeof(ops)/sizeof(ops[0]);i++)if(!strcmp(op,ops[i]))return 1;return 0;
+    for (size_t i = 0; i < sizeof(ops) / sizeof(ops[0]); i++) {
+        if (!strcmp(op, ops[i])) return 1;
+    }
+    return 0;
 }
 static int token_nonempty_string(Json *j, int id) {
     char *text = token_text(j, id);

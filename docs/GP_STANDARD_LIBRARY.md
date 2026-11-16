@@ -22,6 +22,23 @@ mostrar(mensagem)
 
 Para grandes blocos de texto, prefira acumular fragmentos em `lista texto` e chamar `unir_textos` uma vez, em vez de concatenar repetidamente a string acumulada dentro de um laço.
 
+## Módulo matemático puro — `biblioteca/matematica.gp`
+
+O primeiro módulo adicional da biblioteca fornece funções sem estado e sem dependências de runtime:
+
+- `valor_absoluto(valor: numero) -> numero`
+- `menor_numero(primeiro: numero, segundo: numero) -> numero`
+- `maior_numero(primeiro: numero, segundo: numero) -> numero`
+- `limitar_numero(valor, limite_inferior, limite_superior) -> numero`
+
+`limitar_numero` retorna o limite inferior quando ele é maior que o superior (comportamento deliberado e documentado), caso contrário limita o valor ao intervalo fechado. O módulo é composto apenas por construções GP já suportadas, e foi testado com o compilador de referência, frontend GP auto-hospedado executado na VM C e runtime C.
+
+```gp
+usar "biblioteca/matematica.gp" como math
+mostrar(math.valor_absoluto(-12))
+mostrar(math.limitar_numero(20, 0, 10))
+```
+
 ## Compatibilidade e limites
 
 A primitiva está disponível no interpretador bootstrap, VM Python, VM C e no frontend auto-hospedado. O backend GP→C continua sendo experimental e não oferece suporte geral a listas; não declarar compatibilidade desse backend com `unir_textos` até que sua representação de coleções seja implementada.
