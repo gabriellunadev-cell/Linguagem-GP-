@@ -169,6 +169,14 @@ class GPCompilerTests(unittest.TestCase):
                 ["program.gbc"],
             )
 
+    def test_windows_atomic_publish_skips_unsupported_directory_fsync(self):
+        from gp_compile import _fsync_parent_directory
+        with tempfile.TemporaryDirectory() as directory:
+            parent = Path(directory)
+            with mock.patch("gp_compile.os.name", "nt"), mock.patch("gp_compile.os.open") as open_directory:
+                _fsync_parent_directory(parent)
+            open_directory.assert_not_called()
+
     def test_atomic_bytecode_publish_preserves_previous_file_on_replace_failure(self):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "program.gbc"

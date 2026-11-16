@@ -6,16 +6,16 @@ Revalidado em 2026-11-15 na VPS Linux x86_64. O estado de cada alvo é classific
 
 | Alvo | Estado nesta revisão | Evidência |
 |---|---|---|
-| Linux x86_64 | **Host validado** | GCC; suíte completa de 296 testes sem falhas ou skips; projeto modular executado pelo runtime C |
+| Linux x86_64 | **Host validado** | GCC; suíte completa de 297 testes sem falhas ou skips; projeto modular executado pelo runtime C |
 | Linux AArch64 | **Runtime verificado via QEMU** | ELF AArch64 reconstruído; mesmo bytecode modular executado por QEMU; saída Resultado do módulo: 42 |
-| Windows x64 | **Cross-compilado; runtime real pendente** | PE32+ gerado por MinGW-w64; zlib linkado estaticamente; imports limitados a KERNEL32.dll e msvcrt.dll; workflow Windows preparado e YAML analisado localmente, aguardando execução no runner real |
+| Windows x64 | **Cross-compilado; runtime real em correção** | A primeira execução em windows-latest compilou o PE32+, mas revelou que o Python não permite fsync de diretório; correção multiplataforma aplicada, aguardando novo job Windows |
 | WebAssembly WASI preview1 | **Verificação histórica; não repetida nesta rodada** | Existe evidência anterior de execução com Wasmtime 50.0.1 em 2026-11-08; runtime e prefixo zlib WASI não disponíveis nesta VPS |
 | Android arm64 | **Validação NDK/Bionic pendente nesta VPS** | Registros anteriores de validação Termux/ARM64 existem, mas esta rodada não usou Android NDK nem executou em dispositivo Android; QEMU Linux não comprova Bionic |
 
 ## Evidências desta execução
 
 - GP_C_COMPILER=/usr/bin/gcc make validate CLANG=/usr/bin/gcc: exit code 0.
-- Suíte: **296 testes aprovados em 150,360 s, zero falhas e zero skips**.
+- Suíte: **297 testes aprovados em 137,463 s, zero falhas e zero skips**.
 - Corpus diferencial: 6/6 em cada uma das seis dimensões (frontend_supported, direct_legacy_exact, frontend_bootstrap_exact, native_runner_exact, native_encoder_exact, python_c_semantic).
 - Fuzz determinístico: 64 iterações, seed 0x47505632, 38 rejeições, 26 entradas aceitas/executadas e zero divergências.
 - SHA-256 de todos os fixtures GP-IR: aprovados; git diff --check: aprovado.
@@ -48,7 +48,7 @@ O alvo gera build/gpvm-native-linux-arm64 e build/gpvm-native-windows.exe, compi
 
 O workflow .github/workflows/windows-native-runtime.yml prepara MinGW UCRT64, compila a VM no runner windows-latest, compila o mesmo projeto GP modular e executa a VM nativa Windows. O job deve terminar com GP_WINDOWS_X64_RUNTIME_OK e publica os artefatos de validação.
 
-**Estado do workflow nesta revisão:** arquivo presente no working tree e YAML analisado localmente; ainda não publicado/acionado nesta etapa. A validação Windows real só poderá ser marcada após observar um job Windows concluído com sucesso ou executar o binário numa máquina Windows autorizada.
+**Estado do workflow nesta revisão:** workflow publicado e executado em windows-latest. A compilação do PE32+ passou; a primeira execução do projeto falhou ao tentar abrir o diretório pai para fsync (Permission denied). A correção agora sincroniza o arquivo, usa os.replace para a troca atômica e ignora somente o fsync de diretório no Windows, que não oferece o mesmo descritor POSIX. Um teste de regressão foi adicionado. O alvo só será marcado como runtime verificado após o novo job Windows concluir com sucesso.
 
 ## Reproduzir WASI preview1
 

@@ -11,11 +11,12 @@ Versão de linguagem mantida: GP 0.8.52.
 - GP_C_COMPILER=/usr/bin/gcc make validate CLANG=/usr/bin/gcc: exit code 0.
 - make check: py_compile, validação de scripts shell e sintaxe C com -Wall -Wextra -Wpedantic aprovados.
 - make differential-corpus: 6/6 em cada uma das seis dimensões.
-- make test: 296 testes aprovados em 150,360 s; zero falhas e zero skips.
+- make test: 297 testes aprovados em 137,463 s; zero falhas e zero skips.
 - Fuzz determinístico: 64 iterações; 38 rejeições; 26 entradas aceitas/executadas; zero divergências.
 - SHA-256 de todos os fixtures GP-IR e git diff --check aprovados.
 - Linux AArch64: VM recompilada e executada sob QEMU contra o mesmo projeto modular usado pelo host x86_64; saída Resultado do módulo: 42.
 - Windows x64: PE32+ cross-compilado; imports observados KERNEL32.dll e msvcrt.dll; execução real em windows-latest ainda pendente.
+- Primeiro job Windows real: compilação PE32+ passou; smoke test revelou que Windows retorna Permission denied ao tentar fsync no diretório pai após os.replace. Correção aplicada para manter fsync do arquivo e pular somente o fsync de diretório no Windows; teste de regressão incluído; novo job pendente.
 - WASI não repetido: prefixo zlib WASI e runtime Wasmtime indisponíveis nesta VPS.
 - Android NDK/Bionic não testado nesta rodada. Os resultados Android/Termux históricos permanecem registrados nas seções posteriores e não são substituídos por QEMU Linux.
 

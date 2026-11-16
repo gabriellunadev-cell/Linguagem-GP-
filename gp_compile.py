@@ -25,6 +25,19 @@ from gpcompiler.vm import GPVirtualMachine, GPVMError
 
 
 
+def _fsync_parent_directory(parent: Path) -> None:
+    """Persist the directory entry on POSIX; Windows has no portable directory fsync."""
+    if os.name == "nt":
+        # The file itself was flushed with fsync before os.replace. Windows does not
+        # expose a portable POSIX-style directory descriptor for a second fsync.
+        return
+    directory_fd = os.open(parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    try:
+        os.fsync(directory_fd)
+    finally:
+        os.close(directory_fd)
+
+
 def write_bytecode_atomic(output_path: str | Path, bytecode: bytes) -> None:
     """Publish a complete GGPC artifact atomically in the destination directory."""
     destination = Path(output_path)
@@ -47,11 +60,7 @@ def write_bytecode_atomic(output_path: str | Path, bytecode: bytes) -> None:
             os.fsync(stream.fileno())
         os.replace(temporary_path, destination)
         temporary_path = None
-        directory_fd = os.open(parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
-        try:
-            os.fsync(directory_fd)
-        finally:
-            os.close(directory_fd)
+        _fsync_parent_directory(parent)
     except OSError as exc:
         raise ValueError(f"não foi possível publicar bytecode atomicamente em {destination}: {exc}") from exc
     finally:
