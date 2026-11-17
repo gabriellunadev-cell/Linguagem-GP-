@@ -2,6 +2,7 @@ import hashlib
 import contextlib
 import io
 import json
+import os
 import shutil
 import subprocess
 import tempfile
@@ -120,6 +121,12 @@ class SelfHostedIRAdapterTests(unittest.TestCase):
             GPVirtualMachine().run_bytes(encode_canonical_ir(direct))
         self.assertEqual(output.getvalue(), "4\n")
 
+    def test_self_hosted_frontend_parses_import_ast_and_fails_closed_before_linking(self):
+        source = 'usar "biblioteca.gp" como biblioteca\nmostrar(1)'
+        with patch("gp_compile._expand_modules_for_selfhosted", side_effect=lambda value, *args, **kwargs: value):
+            with self.assertRaisesRegex(ValueError, "Importacao GP ainda nao foi resolvida pelo linker nativo"):
+                compile_source_selfhosted_document(source)
+
     def test_self_hosted_runner_receives_source_as_host_data_not_code(self):
         source = 'texto sentinela = "GP_HOST_SOURCE_SENTINEL_2026"\nmostrar(sentinela)'
         original = GPVirtualMachine.run_bytes
@@ -189,15 +196,15 @@ class SelfHostedIRAdapterTests(unittest.TestCase):
                     generate_selfhosted_runner_artifact(allow_python_bootstrap=False)
 
     def test_self_hosted_frontend_runner_matches_on_native_vm(self):
-        clang = shutil.which("clang")
-        if not clang:
-            self.skipTest("Clang não instalado")
+        compiler = os.environ.get("GP_C_COMPILER") or shutil.which("clang")
+        if not compiler:
+            self.skipTest("Defina GP_C_COMPILER ou instale Clang")
         project = Path(__file__).resolve().parents[1]
         with tempfile.TemporaryDirectory() as directory:
             native_vm = Path(directory) / "gpvm-native"
             built = subprocess.run(
                 [
-                    clang, "-std=c11", "-O2", "-Wall", "-Wextra",
+                    compiler, "-std=c11", "-O2", "-Wall", "-Wextra",
                     str(project / "gpvm_native.c"), "-lz", "-lm", "-o", str(native_vm),
                 ],
                 text=True, capture_output=True, check=False,
@@ -235,6 +242,41 @@ class SelfHostedIRAdapterTests(unittest.TestCase):
         with contextlib.redirect_stdout(output):
             GPVirtualMachine().run_bytes(encode_canonical_ir(document))
         self.assertEqual(output.getvalue(), "0\n")
+
+    def test_self_hosted_frontend_compiles_python_interop_calls_for_reference_vm(self):
+        source = """
+            numero raiz = py_chamar("math.sqrt", [81])
+            texto digest = py_chamar("hashlib.sha256", ["GP"])
+            mostrar(raiz, tamanho(digest))
+        """
+        document = compile_source_selfhosted_document(source)
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            GPVirtualMachine(python_interop=True).run_bytes(
+                encode_canonical_ir(document)
+            )
+        self.assertEqual(output.getvalue(), "9.0 64\n")
+
+    def test_self_hosted_function_returns_host_abi_dynamic_value_with_runtime_type_check(self):
+        source = """
+            funcao raiz_quadrada(numero valor) -> numero {
+                retornar host_chamar("gp.core.v1.math.sqrt", [valor])
+            }
+            mostrar(raiz_quadrada(81))
+        """
+        document = compile_source_selfhosted_document(source)
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            GPVirtualMachine().run_bytes(encode_canonical_ir(document))
+        self.assertEqual(output.getvalue(), "9.0\n")
+
+    def test_self_hosted_frontend_validates_python_interop_call_shape(self):
+        with self.assertRaisesRegex(ValueError, "py_chamar exige dois argumentos"):
+            compile_source_selfhosted_document('py_chamar("math.sqrt")')
+        with self.assertRaisesRegex(ValueError, "primeiro argumento de py_chamar deve ser texto"):
+            compile_source_selfhosted_document("py_chamar(81, [81])")
+        with self.assertRaisesRegex(ValueError, "segundo argumento de py_chamar deve ser uma lista"):
+            compile_source_selfhosted_document('py_chamar("math.sqrt", 81)')
 
     def test_self_hosted_frontend_accepts_standalone_call_statements(self):
         source = """

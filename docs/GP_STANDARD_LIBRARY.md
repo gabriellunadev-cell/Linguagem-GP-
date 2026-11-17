@@ -22,6 +22,44 @@ mostrar(mensagem)
 
 Para grandes blocos de texto, prefira acumular fragmentos em `lista texto` e chamar `unir_textos` uma vez, em vez de concatenar repetidamente a string acumulada dentro de um laço.
 
+## Módulo matemático puro — `biblioteca/matematica.gp`
+
+O primeiro módulo adicional da biblioteca fornece funções sem estado e sem dependências de runtime:
+
+- `valor_absoluto(valor: numero) -> numero`
+- `menor_numero(primeiro: numero, segundo: numero) -> numero`
+- `maior_numero(primeiro: numero, segundo: numero) -> numero`
+- `limitar_numero(valor, limite_inferior, limite_superior) -> numero`
+
+`limitar_numero` retorna o limite inferior quando ele é maior que o superior (comportamento deliberado e documentado), caso contrário limita o valor ao intervalo fechado. O módulo é composto apenas por construções GP já suportadas, e foi testado com o compilador de referência, frontend GP auto-hospedado executado na VM C e runtime C.
+
+```gp
+usar "biblioteca/matematica.gp" como math
+mostrar(math.valor_absoluto(-12))
+mostrar(math.limitar_numero(20, 0, 10))
+```
+
+## Capacidades portáveis do host — GP Host ABI v1
+
+O builtin host_chamar(identificador, argumentos) acessa capacidades determinísticas identificadas por IDs versionados. O contrato completo, catálogo, assinaturas, limites e regras de evolução estão em [HOST_CAPABILITIES_ABI.md](HOST_CAPABILITIES_ABI.md).
+
+- Prefixo reservado: gp.core.v1.
+- As VMs Python e C executam o mesmo catálogo sem depender de libpython.
+- A biblioteca biblioteca/host.gp oferece wrappers de matemática e estatística.
+- O ABI não oferece filesystem, rede, shell, subprocessos, imports dinâmicos nem execução de código.
+- O limite é de 1.024 chamadas por execução, 16 argumentos, listas de até 10.000 elementos, profundidade 8 e texto até 1 MiB.
+- py_chamar é uma extensão separada, opcional e exclusiva do runtime Python; não é necessário habilitá-la para host_chamar.
+
+Exemplo:
+
+```gp
+usar "biblioteca/host.gp" como nativo
+numero raiz = nativo.raiz_quadrada(81)
+numero divisor = nativo.mdc(18, 24)
+numero media = nativo.media([2, 4, 6, 8])
+mostrar(raiz, divisor, media)
+```
+
 ## Compatibilidade e limites
 
 A primitiva está disponível no interpretador bootstrap, VM Python, VM C e no frontend auto-hospedado. O backend GP→C continua sendo experimental e não oferece suporte geral a listas; não declarar compatibilidade desse backend com `unir_textos` até que sua representação de coleções seja implementada.
@@ -89,4 +127,4 @@ mostrar(valores)
 | `entrada_fonte` | Não é API geral | Sim, com fonte do host | Sim, com fonte do host | Sim, para compilar a própria fonte |
 | `mostrar` | Instrução | Opcode/runtime | Opcode/runtime | Instrução |
 
-Esta é a biblioteca padrão inicial efetivamente implementada, não uma promessa de biblioteca completa. APIs de arquivos, rede, sistema operacional, datas, matemática ampliada, testes, concorrência e pacotes ainda não fazem parte do contrato estável 0.8.52. Cada novo módulo deve ser adicionado somente após especificação, paridade entre runtimes, limites de recursos e testes positivos/negativos.
+Esta é a biblioteca padrão inicial efetivamente implementada, não uma promessa de biblioteca completa. APIs de arquivos, rede, sistema operacional, datas, matemática ampliada, testes, concorrência e pacotes ainda não fazem parte do contrato estável 0.8.53. Cada novo módulo deve ser adicionado somente após especificação, paridade entre runtimes, limites de recursos e testes positivos/negativos.

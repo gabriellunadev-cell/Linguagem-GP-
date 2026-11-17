@@ -1,6 +1,6 @@
 # Plano de autossuficiência — Gabriel Programming
 
-Atualizado em: 2026-11-08
+Atualizado em: 2026-11-09
 Estado de referência: GP 0.8.51, Android/Termux ARM64.
 
 ## Objetivo verificável
@@ -24,8 +24,8 @@ O sistema operacional, o linker/compilador C usado para produzir o primeiro runt
 
 1. CLI e orquestração: `gp_compile.py` coordena leitura da fonte, opções, módulos, frontend, encoder, publicação e execução.
 2. Bootstrap inicial: `generate_selfhosted_runner_artifact()` chama `compile_source()` do compilador Python para produzir o estágio N.
-3. Resolução de módulos: a expansão recursiva de imports é feita em `gp_compile.py` e `gpcompiler/modules.py` antes de o frontend GP receber a fonte.
-4. Adaptação e transporte: Python chama a VM C, envia stdin, recolhe GP-IR e coordena o encoder.
+3. Fronteira de módulos: o host Python ainda descobre, canonicaliza e lê arquivos e aplica as transformações textuais de namespace. No caminho nativo, porém, o grafo, a ordem topológica, a deduplicação e a detecção de ciclos são decididos pelo resolvedor GP no runner pré-compilado/VM C; o resolvedor não é recompilado por compile_source Python.
+4. Driver e transporte: gp_compile.py ainda coordena opções, leitura, runner, GP-IR, encoder, publicação e execução. A cadeia usa VM C e encoder C no modo nativo, mas a orquestração do projeto ainda não foi reescrita integralmente em GP.
 5. Ferramentas de engenharia: testes, corpus diferencial, fuzzing e prova de bootstrap são orquestrados por scripts Python.
 
 Portanto, executar o frontend GP na VM C não significa ainda que o toolchain inteiro seja independente de Python.
@@ -48,10 +48,10 @@ A VM de referência e a VM C expõem hoje um conjunto pequeno de builtins de run
 ## Sequência de execução
 
 ### Fase 1 — congelar e auditar o bootstrap
-- [ ] Definir o contrato do artefato seed e separar seus hashes das dependências Python históricas.
-- [ ] Registrar a fonte GP exata que originou o seed, versão do formato, hash do bytecode e toolchain de origem.
-- [ ] Fazer a prova de bootstrap consumir um seed fixo sem chamar `compile_source()`.
-- [ ] Rejeitar seed ausente, corrompido ou incompatível; nunca regenerar silenciosamente por fallback Python.
+- [x] Definir o contrato do artefato seed e separar sua identidade das dependências Python históricas no manifesto.
+- [x] Registrar os hashes dos arquivos de entrada, formato, hash do bytecode seed e origem Python bootstrap no manifesto.
+- [x] Fazer a prova de bootstrap consumir o seed existente sem chamar compile_source para reconstruir o estágio N.
+- [x] Rejeitar seed ausente/corrompido/incompatível com verificação de hash e modo estrito fail-closed.
 
 ### Fase 2 — construir a biblioteca padrão mínima
 - [ ] Definir módulos e contratos de texto/Unicode, coleções, erros e conversões.
@@ -60,9 +60,10 @@ A VM de referência e a VM C expõem hoje um conjunto pequeno de builtins de run
 - [ ] Manter testes diferenciais entre VM Python e VM C.
 
 ### Fase 3 — transferir o sistema de módulos
-- [ ] Mover resolução, grafo de dependências e namespaces para um módulo/toolchain GP.
-- [ ] Preservar limites atuais: profundidade 32, 128 módulos, 4 MiB por arquivo e 16 MiB por grafo, ajustando apenas com evidência.
-- [ ] Cobrir ciclos, links simbólicos, traversal, duplicatas, permissões e arquivos especiais.
+- [x] Mover o DFS, a ordem topológica, a deduplicação e a detecção de ciclos para o resolvedor GP executado no caminho nativo.
+- [ ] Integrar declarações usar diretamente ao AST/GP-IR e mover a expansão textual de namespaces para o toolchain GP.
+- [x] Preservar limites atuais: profundidade 32, até 128 nós/arestas do grafo, 4 MiB por arquivo e 16 MiB por grafo.
+- [x] Cobrir ciclos, links simbólicos, traversal, duplicatas, permissões e arquivos especiais na suíte de regressão.
 
 ### Fase 4 — construir o driver do compilador em GP
 - [ ] Criar CLI GP para compilar, inspecionar IR, executar, testar e publicar bytecode.
@@ -71,10 +72,10 @@ A VM de referência e a VM C expõem hoje um conjunto pequeno de builtins de run
 - [ ] Manter Python somente como oráculo de testes durante a transição, não como dependência de produção.
 
 ### Fase 5 — bootstrap e distribuição independentes
-- [ ] N (seed) gera N+1; N+1 gera N+2; N+1 e N+2 são idênticos.
+- [x] N (seed) gera N+1; N+1 gera N+2; N+1 e N+2 são idênticos na prova persistida.
 - [ ] Repetir o bootstrap em instalação limpa Android ARM64 sem Python instalado.
 - [ ] Repetir em outra plataforma suportada antes de declarar portabilidade.
-- [ ] Documentar como reconstruir o seed e como verificar a cadeia de confiança.
+- [x] Documentar manifesto, hashes e verificação da cadeia de bootstrap; automatização de reconstrução em instalação limpa continua pendente.
 
 ## Critérios para declarar independência
 
@@ -84,7 +85,7 @@ A versão 1.0.0 ainda exige os demais portões em `RELEASE_CRITERIA_1.0.0.md`. A
 
 ## Próximo marco técnico
 
-O próximo marco é a Fase 1: congelar um seed verificável e provar que o ciclo N → N+1 → N+2 parte dele sem executar o compilador Python. Só depois avançar para APIs de sistema e o driver GP, com testes pequenos e reversíveis em cada etapa.
+O próximo marco é concluir a Fase 3: representar imports diretamente no AST/GP-IR, para que a expansão de namespaces também seja controlada por GP e o host fique restrito às capacidades de filesystem. Em seguida, iniciar a Fase 4 e transferir o driver de build para GP, preservando os limites, diagnósticos e publicação atômica. A prova N → N+1 → N+2 já tem evidência persistida; a geração inicial do seed continua explicitamente identificada como Python bootstrap.
 
 ## Medição de desempenho do bootstrap — 2026-11-08
 
@@ -107,3 +108,10 @@ Esses resultados indicam custo elevado do próprio frontend auto-hospedado, e n�
 ### Baseline nativa detalhada — 2026-11-08
 
 A medição isolada da VM C foi registrada em [`PERFORMANCE_BASELINE_2026-11-08.md`](PERFORMANCE_BASELINE_2026-11-08.md). O probe de parser executou 878.748 instruções em mediana de 1,1885 s, com heap GP pico de 11.355.760 B. O frontend completo, com 136.757 caracteres, atingiu o limite de 1.000.000 passos em 2,9168 s, após alocar 184.097 objetos e alcançar 14,57 MiB de heap contabilizado; os ensaios com 3.000.000 e 10.000.000 passos excederam os timeouts definidos. Isso reforça a necessidade de profiling por fase antes de qualquer alteração no lexer ou na tabela de símbolos.
+
+
+## Atualização — resolução de módulos no caminho nativo — 2026-11-09
+
+O caminho scripts/gpc-native-project passou a executar o resolvedor linguagem/resolver_modulos_gp.gp usando diretamente o runner GP pré-compilado na VM C. O GP-IR devolvido pelo frontend é encaminhado ao encoder C e o bytecode resultante é executado pela mesma VM C. Isso remove a recompilação do resolvedor via gp_compile.compile_source do caminho nativo e mantém o fallback Python apenas para ambientes de referência sem VM C.
+
+Uma regressão automatizada bloqueia gp_compile.compile_source durante a compilação de um projeto com imports aninhados; o programa ainda precisa produzir Resultado do módulo: 42. A fronteira de filesystem, a transformação de namespaces e o driver CLI continuam no host Python. Portanto, esta etapa reduz uma dependência recorrente, mas não prova independência do toolchain.

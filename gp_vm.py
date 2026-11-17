@@ -12,6 +12,11 @@ def main(argv=None):
     parser.add_argument("bytecode", help="Arquivo .gbc")
     parser.add_argument("--max-steps", type=int, default=1_000_000)
     parser.add_argument(
+        "--python-interop",
+        action="store_true",
+        help="habilitar capacidades Python allowlisted no runtime de referência",
+    )
+    parser.add_argument(
         "--source-input",
         help="Arquivo de texto fornecido ao programa pela função entrada_fonte()",
     )
@@ -24,7 +29,10 @@ def main(argv=None):
             if host_path.stat().st_size > GP_MAX_HOST_SOURCE_BYTES:
                 raise GPVMError("entrada_fonte excede o limite de 16 MiB")
             host_source = host_path.read_text(encoding="utf-8")
-        GPVirtualMachine(max_steps=args.max_steps).run_bytes(
+        GPVirtualMachine(
+            max_steps=args.max_steps,
+            python_interop=args.python_interop,
+        ).run_bytes(
             data, host_source=host_source
         )
         return 0

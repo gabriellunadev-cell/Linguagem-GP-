@@ -383,3 +383,56 @@ A linha de base da VM C e do frontend auto-hospedado está em `docs/PERFORMANCE_
 - [ ] Usar os resultados para priorizar novas otimizações do frontend e da VM nativa.
 
 **Status:** otimização, suíte completa e bootstrap reproduzível aprovados no Termux/Android ARM64. A comparação quantitativa com o baseline anterior permanece pendente; não declarar melhoria global de desempenho antes dela.
+
+### Revalidação no provedor/VPS x86_64 — 2026-11-08
+
+- [x] `make validate`: 273 testes aprovados; corpus diferencial 6/6 nas seis dimensões; fuzz 64, 38 rejeições, 26 execuções aceitas e zero divergências.
+- [x] `make check` repetido após limpeza dos avisos C; Python e GCC `-Wall -Wextra -Wpedantic` aprovados.
+- [x] Bootstrap nativo N→N+1→N+2: `BOOTSTRAP_PROOF_OK`; N+1 e N+2 idênticos, SHA-256 `6ced6b6e03f7d9978eb13d3919591bd3ec8fefd8046f7d73600b78ea4055ab72`.
+- [x] Memória abaixo do teto de 256 MiB: heap pico 75,56/75,65 MiB e RSS pico 92,44/92,38 MiB nos dois estágios.
+- [x] Telemetria reprodutível do GC: 1.053 ciclos por estágio, 6.090.845 objetos alocados, 5.981.870 liberados e 2,384 GiB cumulativos recuperados.
+- [x] Avaliação do limiar de 4 MiB: ganho pequeno no microbenchmark, mas apenas 1,1% menos coletas no frontend completo e pico de heap quase 1,8× maior; manter 1 MiB como padrão.
+- [x] GP Bridge pública validada por TLS, redirecionamento HTTPS e Basic Auth; health local HTTP 200.
+- [ ] Comparar desempenho com baseline medido na mesma arquitetura e hardware; não comparar diretamente esta VPS x86_64 ao baseline Android ARM64.
+
+**Nota de escopo:** a execução confirma reprodutibilidade de duas gerações com a VM C, não autossuficiência integral. O artefato seed N ainda é preparado pelo bootstrap Python, e a orquestração/materialização GP-IR ainda mantém dependências do host.
+
+### Seis frentes — ciclo concluído na VPS x86_64 — 2026-11-08
+
+- [x] GC iterativo sem recursão C; teste de cadeia de 100.000 arrays, com marcação e sweep completos.
+- [x] Parser GP aceita cabeçalho `programa "título"` e o trata como metadado sem instrução de runtime.
+- [x] `scripts/gpc-native` e `make compile-selfhosted-native` compilam arquivo GP sem iniciar Python, usando frontend GP + VM C + encoder C. Smoke test gerou bytecode e executou `Soma: 15` e `Fatorial: 120`.
+- [x] Primeiro resolvedor puro de grafo em GP, com DFS, ordem topológica, deduplicação, ciclo, aliases, limite 128 e profundidade 32; validado por VM C.
+- [x] Módulo `biblioteca/matematica.gp` com quatro funções puras, testado em frontend GP e runtime C.
+- [x] Manifesto/verificador de toolchains e documentação multiplataforma; Linux x86_64 detectado. Android arm64, Windows x64 e WASI permanecem explicitamente não verificados por ausência de NDK, MinGW e WASI SDK.
+- [x] `make validate` final: exit code 0 em 115,08 s; 277 testes aprovados em 91,234 s; corpus 6/6; fuzz 64 sem divergências; checksums, `make targets` e `git diff --check` aprovados.
+- [x] Bootstrap estrito após o novo parser e GC iterativo: `BOOTSTRAP_PROOF_OK`; seed N `57660e55…df4c6e8`; N+1=N+2 `748479fc…aea1f45f`, 23.210 bytes, 303,58 s.
+- [x] Pico de heap 79,79/79,88 MiB e RSS 94,47/94,77 MiB, dentro do teto de 256 MiB; 1.057 ciclos de GC e 2,40 GiB cumulativos recuperados por estágio.
+
+**Limites restantes:** imports ainda precisam de integração ponta a ponta com o resolvedor GP; o caminho Python-free suporta apenas fonte única sem imports; bootstrap inicial ainda é produzido por Python; Android, Windows e WASI ainda não foram compilados e testados.
+
+
+## GP 0.8.52 — interoperabilidade híbrida Python + GP — 2026-11-15
+
+- py_chamar(capacidade, argumentos) permite ao código GP usar um conjunto fixo de funções Python padrão no runtime de referência; o frontend GP auto-hospedado também analisa e compila esse builtin.
+- A ativação é explícita por --python-interop; o Programinha transmite pythonInterop: true apenas quando o usuário habilita a opção.
+- biblioteca/python.gp oferece wrappers GP para matemática, estatística, hash e normalização Unicode.
+- Segurança: allowlist fechada, limites de chamadas/argumentos/valores, sem eval/exec, importação dinâmica, shell, filesystem ou rede.
+- Compatibilidade: GP-IR v1 e GGPC v2 permanecem inalterados. A VM C nativa continua independente da camada Python.
+- Próxima fronteira foi entregue no ciclo GP 0.8.53: GP Host Capabilities ABI v1 com identificadores gp.core.v1.*, contrato fechado, manifesto de capacidades e despacho independente do Python. A VM Python e a VM C implementam o catálogo portátil; py_chamar permanece uma extensão separada e opcional.
+
+
+## GP 0.8.53 — GP Host Capabilities ABI v1 — 2026-11-16
+
+- [x] Definido ABI de host versionado com prefixo gp.core.v1., IDs estáveis, manifest JSON, descrições de assinatura, tipos de argumento/retorno e limites normativos.
+- [x] Registradas 21 capacidades determinísticas: matemática (raiz, trigonometria, logaritmos, exponencial, abs, arredondamentos, fatorial, MDC/MMC, hipotenusa, finitude) e estatística (média, mediana, variância e desvios padrão).
+- [x] Implementado dispatcher no runtime Python e no runtime C, sem dependência de libpython. O builtin GP host_chamar reutiliza a instrução CALL existente.
+- [x] Mantidos GP-IR v1 e GGPC v2, sem alteração do bytecode para essa extensão.
+- [x] Frontend auto-hospedado em GP valida a assinatura do builtin; interpretador bootstrap oferece o mesmo builtin.
+- [x] Biblioteca biblioteca/host.gp fornece wrappers GP portáveis; biblioteca/python.gp permanece opcional.
+- [x] GP Bridge health anuncia versão do ABI, limites e catálogo ativo.
+- [x] Segurança: catálogo fechado, sem resolução dinâmica; até 1.024 chamadas, 16 argumentos, listas limitadas a 10.000 valores e números dentro do intervalo seguro.
+- [x] make validate: 335 testes em 165,633 s; zero falhas/skips; corpus diferencial 6/6; fuzz 64 (38 rejeições, 26 execuções aceitas, zero divergências); hashes e git diff --check aprovados.
+- [x] VM C Linux ARM64 executada via QEMU com o exemplo completo host_capabilities.gp; marker GP_HOST_ABI_ARM64_OK.
+- [x] Windows x64 PE cross-compilado; runtime Windows da revisão 0.8.53 aguarda workflow CI após o push.
+- [ ] Android NDK/Bionic e WASI runtime permanecem pendentes; testes de desempenho ficam para o próximo ciclo.

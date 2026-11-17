@@ -137,6 +137,27 @@ NESTED_BACKPATCH_SOURCE = """
 
 
 class GPCompilerTests(unittest.TestCase):
+    def test_module_graph_topological_order_is_computed_by_gp(self):
+        from gpcompiler.source_modules import resolve_order_gp
+        order = resolve_order_gp(
+            ["0", "1", "0"],
+            ["1", "2", "3"],
+            ["app_core", "base", "tools"],
+            ["0"],
+        )
+        self.assertEqual(order, ["2", "1", "3", "0"])
+
+    def test_module_graph_gp_rejects_cycles_and_duplicate_aliases(self):
+        from gpcompiler.source_modules import resolve_order_gp
+        with self.assertRaisesRegex(ValueError, "Ciclo de importação GP"):
+            resolve_order_gp(
+                ["0", "1"], ["1", "0"], ["first", "back"], ["0"],
+            )
+        with self.assertRaisesRegex(ValueError, "Ciclo de importação GP"):
+            resolve_order_gp(
+                ["0", "0"], ["1", "2"], ["duplicate", "duplicate"], ["0"],
+            )
+
     def test_atomic_bytecode_publish_replaces_complete_artifact(self):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "program.gbc"
@@ -147,6 +168,14 @@ class GPCompilerTests(unittest.TestCase):
                 sorted(path.name for path in Path(directory).iterdir()),
                 ["program.gbc"],
             )
+
+    def test_windows_atomic_publish_skips_unsupported_directory_fsync(self):
+        from gp_compile import _fsync_parent_directory
+        with tempfile.TemporaryDirectory() as directory:
+            parent = Path(directory)
+            with mock.patch("gp_compile.os.name", "nt"), mock.patch("gp_compile.os.open") as open_directory:
+                _fsync_parent_directory(parent)
+            open_directory.assert_not_called()
 
     def test_atomic_bytecode_publish_preserves_previous_file_on_replace_failure(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -970,6 +999,56 @@ class GPCompilerTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Alias de módulo duplicado"):
                 compile_source_selfhosted(source, source_path=root / "main.gp")
 
+    def test_reference_backend_links_modules_from_ast_without_source_rewrites(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "calc.gp").write_text(
+                "funcao dobro(numero n) -> numero { retornar n * 2 }\n"
+                "funcao quadruplicar(numero n) -> numero { retornar dobro(dobro(n)) }",
+                encoding="utf-8",
+            )
+            source_path = root / "main.gp"
+            source = (
+                'programa "Importação AST"\n'
+                'usar "calc.gp" como c\n'
+                "mostrar(c.quadruplicar(5))"
+            )
+            resolver = mock.patch(
+                "gpcompiler.source_modules.resolve_order_gp",
+                wraps=__import__(
+                    "gpcompiler.source_modules", fromlist=["resolve_order_gp"]
+                ).resolve_order_gp,
+            )
+            with resolver as graph_resolver, mock.patch(
+                "gp_compile._apply_source_edits",
+                side_effect=AssertionError("reescrita textual não permitida"),
+            ), mock.patch(
+                "gp_compile._rename_module_calls",
+                side_effect=AssertionError("renomeação textual não permitida"),
+            ):
+                _, ir, bytecode = compile_source(source, source_path=source_path)
+
+            self.assertEqual(graph_resolver.call_count, 1)
+            self.assertIn("__gp_namespace_c__dobro", ir.functions)
+            self.assertIn("__gp_namespace_c__quadruplicar", ir.functions)
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                GPVirtualMachine().run_bytes(bytecode)
+            self.assertEqual(output.getvalue().strip(), "20")
+
+    def test_unresolved_import_fails_closed_before_semantics_and_lowering(self):
+        from gpcompiler.ast import ASTNode
+        from gpcompiler.semantic import SemanticAnalyzer
+
+        root = ASTNode(
+            "block",
+            ([ASTNode("import", ("nao_existe.gp", "mod"))],),
+        )
+        errors = SemanticAnalyzer().analyze(root)
+        self.assertTrue(any("Importação GP não resolvida" in error for error in errors))
+        with self.assertRaisesRegex(ValueError, "precisa ser resolvida pelo linker AST"):
+            Lowerer().lower(root)
+
     def test_module_function_namespace(self):
         source_path = Path("exemplos/modulos/aplicacao.gp").resolve()
         source = source_path.read_text(encoding="utf-8")
@@ -992,7 +1071,7 @@ class GPCompilerTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Módulo GP não encontrado"):
                 compile_source('usar "missing.gp" como m', source_path=Path(temp) / "main.gp")
 
-    @unittest.skipUnless(shutil.which("clang"), "Clang não instalado; teste nativo ignorado")
+    @unittest.skipUnless(os.environ.get("GP_C_COMPILER") or shutil.which("clang"), "Defina GP_C_COMPILER ou instale Clang; teste nativo ignorado")
     def test_native_arm64_backend_compiles_and_runs(self):
         project = Path(__file__).resolve().parents[1]
         with tempfile.TemporaryDirectory() as temp:
@@ -1012,9 +1091,10 @@ class GPCompilerTests(unittest.TestCase):
                 mostrar("Total:", total)
                 mostrar("Ativo:", ativo)
             """, encoding="utf-8")
+            compiler = os.environ.get("GP_C_COMPILER") or shutil.which("clang") or "clang"
             result = subprocess.run(
                 [sys.executable, str(project / "gp_native.py"), str(source),
-                 "-o", str(executable), "--run"],
+                 "-o", str(executable), "--clang", compiler, "--run"],
                 text=True, capture_output=True, check=False,
             )
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -1031,12 +1111,14 @@ class GPNativeVMTests(unittest.TestCase):
         cls.project = Path(__file__).resolve().parents[1]
         cls.temp = tempfile.TemporaryDirectory()
         cls.vm_binary = Path(cls.temp.name) / "gpvm-native"
-        clang = shutil.which("clang")
-        if not clang:
-            raise unittest.SkipTest("Clang não instalado; VM nativa ignorada")
+        compiler = os.environ.get("GP_C_COMPILER") or shutil.which("clang")
+        if not compiler:
+            raise unittest.SkipTest("Defina GP_C_COMPILER ou instale Clang; VM nativa ignorada")
         result = subprocess.run(
-            [clang, "-std=c11", "-O2", "-Wall", "-Wextra",
-             str(cls.project / "gpvm_native.c"), "-lz", "-lm", "-o", str(cls.vm_binary)],
+            [
+                compiler, "-std=c11", "-O2", "-Wall", "-Wextra",
+                str(cls.project / "gpvm_native.c"), "-lz", "-lm", "-o", str(cls.vm_binary),
+            ],
             text=True, capture_output=True, check=False,
         )
         if result.returncode:
@@ -1047,14 +1129,224 @@ class GPNativeVMTests(unittest.TestCase):
         if hasattr(cls, "temp"):
             cls.temp.cleanup()
 
-    def run_native(self, source, source_path=None, extra=()):
+    def run_native(self, source, source_path=None, extra=(), env=None):
         _, _, bytecode = compile_source(source, source_path=source_path)
         path = Path(self.temp.name) / "case.gbc"
         path.write_bytes(bytecode)
         return subprocess.run(
             [str(self.vm_binary), str(path), *extra],
+            text=True, capture_output=True, check=False, env=env,
+        )
+
+    def test_gp_math_standard_module_matches_python_and_native_runtimes(self):
+        source_path = self.project / "exemplos" / "modulos" / "stdlib_math_check.gp"
+        source = """
+            usar "../../biblioteca/matematica.gp" como math
+            mostrar(math.valor_absoluto(-12))
+            mostrar(math.menor_numero(4, 9))
+            mostrar(math.maior_numero(4, 9))
+            mostrar(math.limitar_numero(20, 0, 10))
+            mostrar(math.limitar_numero(-5, 0, 10))
+            mostrar(math.limitar_numero(6, 0, 10))
+        """
+        _, _, reference_bytecode = compile_source(source, source_path=source_path)
+        reference_output = io.StringIO()
+        with contextlib.redirect_stdout(reference_output):
+            GPVirtualMachine().run_bytes(reference_bytecode)
+
+        program = compile_source_selfhosted(
+            source, source_path=source_path, runner_backend="native", native_vm=self.vm_binary,
+        )
+        self_hosted_bytecode = encode(program)
+        native_path = Path(self.temp.name) / "stdlib-math-native.gbc"
+        native_path.write_bytes(self_hosted_bytecode)
+        native = subprocess.run(
+            [str(self.vm_binary), str(native_path)],
             text=True, capture_output=True, check=False,
         )
+        self.assertEqual(native.returncode, 0, native.stderr)
+        self.assertEqual(reference_output.getvalue(), "12\n4\n9\n10\n0\n6\n")
+        self.assertEqual(native.stdout, reference_output.getvalue())
+
+    def test_gp_owned_module_graph_resolver_orders_modules_and_rejects_cycles_and_aliases(self):
+        source_path = self.project / "exemplos" / "modulos" / "module_graph_check.gp"
+        source = """
+            usar "../../linguagem/resolver_modulos_gp.gp" como resolver
+            lista texto origens = ["app", "base", "app"]
+            lista texto destinos = ["base", "leaf", "tools"]
+            lista texto aliases = ["base", "leaf", "tools"]
+            lista texto raizes = ["app"]
+            lista texto ordem = resolver.resolver_modulos_gp(origens, destinos, aliases, raizes)
+            mostrar(tamanho(ordem), ordem[0], ordem[1], ordem[2], ordem[3])
+
+            lista texto ciclos_origem = ["a", "b"]
+            lista texto ciclos_destino = ["b", "a"]
+            lista texto ciclos_alias = ["b", "a"]
+            lista texto ciclos_raiz = ["a"]
+            lista texto ciclo = resolver.resolver_modulos_gp(ciclos_origem, ciclos_destino, ciclos_alias, ciclos_raiz)
+            mostrar(tamanho(ciclo))
+
+            lista texto dup_origem = ["root", "root"]
+            lista texto dup_destino = ["left", "right"]
+            lista texto dup_alias = ["same", "same"]
+            lista texto dup_raiz = ["root"]
+            lista texto duplicado = resolver.resolver_modulos_gp(dup_origem, dup_destino, dup_alias, dup_raiz)
+            mostrar(tamanho(duplicado))
+        """
+        program = compile_source_selfhosted(
+            source, source_path=source_path, runner_backend="native", native_vm=self.vm_binary,
+        )
+        path = Path(self.temp.name) / "module-graph-native.gbc"
+        path.write_bytes(encode(program))
+        result = subprocess.run([str(self.vm_binary), str(path)], text=True, capture_output=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "4 leaf base tools app\n0\n0\n")
+
+    def test_native_module_resolver_uses_prebuilt_runner_without_python_bootstrap_compile(self):
+        source_path = self.project / "exemplos" / "modulos" / "aplicacao.gp"
+        source = source_path.read_text(encoding="utf-8")
+        import gp_compile
+
+        with mock.patch.dict(os.environ):
+            os.environ.pop("GP_NATIVE_VM", None)
+            with mock.patch.object(
+                gp_compile, "compile_source",
+                side_effect=AssertionError("Python compile_source não deve resolver módulos no caminho nativo"),
+            ):
+                program = compile_source_selfhosted(
+                    source, source_path=source_path,
+                    runner_backend="native", native_vm=self.vm_binary,
+                )
+
+        bytecode_path = Path(self.temp.name) / "native-module-no-python.gbc"
+        bytecode_path.write_bytes(encode(program))
+        executed = subprocess.run(
+            [str(self.vm_binary), str(bytecode_path)],
+            text=True, capture_output=True, check=False,
+        )
+        self.assertEqual(executed.returncode, 0, executed.stderr)
+        self.assertEqual(executed.stdout.strip(), "Resultado do módulo: 42")
+
+    def test_python_free_native_compiler_script_compiles_single_file(self):
+        source = self.project / "exemplos" / "bytecode_basico.gp"
+        output = Path(self.temp.name) / "python-free-compiler.gbc"
+        result = subprocess.run(
+            [str(self.project / "scripts" / "gpc-native"), str(source), str(output)],
+            cwd=self.project, text=True, capture_output=True, check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(output.is_file())
+        executed = subprocess.run(
+            [str(self.vm_binary), str(output)],
+            text=True, capture_output=True, check=False,
+        )
+        self.assertEqual(executed.returncode, 0, executed.stderr)
+        self.assertIn("Soma: 15", executed.stdout)
+        self.assertIn("Fatorial: 120", executed.stdout)
+
+    def test_native_project_driver_compiles_and_runs_nested_imports(self):
+        source = self.project / "exemplos" / "modulos" / "aplicacao.gp"
+        output = Path(self.temp.name) / "native-module-project.gbc"
+        result = subprocess.run(
+            [str(self.project / "scripts" / "gpc-native-project"), str(source), str(output)],
+            cwd=self.project, text=True, capture_output=True, check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(output.is_file())
+        self.assertIn("frontend GP", result.stdout)
+        self.assertIn("runner VM native", result.stdout)
+        self.assertIn("encoder C nativo", result.stdout)
+        self.assertIn("Resultado do módulo: 42", result.stdout)
+
+    def test_native_vm_executes_versioned_host_abi_and_matches_python(self):
+        source = """
+            numero raiz = host_chamar("gp.core.v1.math.sqrt", [81])
+            numero divisor = host_chamar("gp.core.v1.math.gcd", [18, 24])
+            numero media = host_chamar("gp.core.v1.statistics.mean", [[2, 4, 6, 8]])
+            numero mediana = host_chamar("gp.core.v1.statistics.median", [[1, 3, 5]])
+            se (raiz == 9 && divisor == 6 && media == 5 && mediana == 3) {
+                mostrar("PORTABLE_ABI_OK")
+            } senao {
+                mostrar("PORTABLE_ABI_MISMATCH")
+            }
+        """
+        _ast, _ir, bytecode = compile_source(source)
+        reference = io.StringIO()
+        with contextlib.redirect_stdout(reference):
+            GPVirtualMachine().run_bytes(bytecode)
+        path = Path(self.temp.name) / "host-abi-cross-runtime.gbc"
+        path.write_bytes(bytecode)
+        native = subprocess.run(
+            [str(self.vm_binary), str(path)],
+            text=True, capture_output=True, check=False,
+        )
+        self.assertEqual(reference.getvalue(), "PORTABLE_ABI_OK\n")
+        self.assertEqual(native.returncode, 0, native.stderr)
+        self.assertEqual(native.stdout, reference.getvalue())
+
+    def test_native_vm_host_library_module_matches_reference_runtime(self):
+        source_path = self.project / "exemplos" / "modulos" / "host_abi_check.gp"
+        source = """
+            usar "../../biblioteca/host.gp" como nativo
+            numero raiz = nativo.raiz_quadrada(81)
+            numero divisor = nativo.mdc(18, 24)
+            numero media = nativo.media([2, 4, 6, 8])
+            numero variancia = nativo.variancia_populacional([2, 4, 6])
+            se (raiz == 9 && divisor == 6 && media == 5 && variancia > 2.66 && variancia < 2.67) {
+                mostrar("HOST_LIBRARY_OK")
+            } senao {
+                mostrar("HOST_LIBRARY_MISMATCH")
+            }
+        """
+        _, _, reference_bytecode = compile_source(source, source_path=source_path)
+        reference_output = io.StringIO()
+        with contextlib.redirect_stdout(reference_output):
+            GPVirtualMachine().run_bytes(reference_bytecode)
+        program = compile_source_selfhosted(
+            source, source_path=source_path, runner_backend="native", native_vm=self.vm_binary,
+        )
+        from gpcompiler.bytecode import encode
+        native_path = Path(self.temp.name) / "host-abi-library-native.gbc"
+        native_path.write_bytes(encode(program))
+        native = subprocess.run(
+            [str(self.vm_binary), str(native_path)],
+            text=True, capture_output=True, check=False,
+        )
+        self.assertEqual(reference_output.getvalue(), "HOST_LIBRARY_OK\n")
+        self.assertEqual(native.returncode, 0, native.stderr)
+        self.assertEqual(native.stdout, reference_output.getvalue())
+
+    def test_native_vm_host_abi_runs_bytecode_from_self_hosted_frontend(self):
+        source = """
+            numero result = host_chamar("gp.core.v1.math.factorial", [6])
+            numero common = host_chamar("gp.core.v1.math.gcd", [54, 24])
+            se (result == 720 && common == 6) { mostrar("SELF_HOSTED_ABI_OK") }
+        """
+        program = compile_source_selfhosted(
+            source, runner_backend="native", native_vm=self.vm_binary,
+        )
+        from gpcompiler.bytecode import encode
+        path = Path(self.temp.name) / "host-abi-selfhosted.gbc"
+        path.write_bytes(encode(program))
+        native = subprocess.run(
+            [str(self.vm_binary), str(path)], text=True, capture_output=True, check=False,
+        )
+        self.assertEqual(native.returncode, 0, native.stderr)
+        self.assertEqual(native.stdout, "SELF_HOSTED_ABI_OK\n")
+
+    def test_native_vm_rejects_unknown_host_capability_and_invalid_domain(self):
+        unknown = self.run_native('host_chamar("gp.core.v1.os.system", ["id"])')
+        self.assertNotEqual(unknown.returncode, 0)
+        self.assertIn("capacidade GP Host ABI v1 desconhecida", unknown.stderr)
+        invalid = self.run_native('host_chamar("gp.core.v1.math.sqrt", [-1])')
+        self.assertNotEqual(invalid.returncode, 0)
+        self.assertIn("argumento não pode ser negativo", invalid.stderr)
+
+    def test_native_vm_enforces_host_abi_call_budget(self):
+        call = 'host_chamar("gp.core.v1.math.factorial", [5])\n'
+        result = self.run_native(call * 1025)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("limite de 1024 chamadas", result.stderr)
 
     def test_native_vm_unir_textos_handles_unicode_and_empty_list(self):
         result = self.run_native("""
@@ -1756,6 +2048,47 @@ class GPNativeVMTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.splitlines()[0], "3 3 2 2")
 
+    def test_native_vm_cached_typed_array_still_rejects_invalid_mutation(self):
+        source = """
+            lista numero values = [1, 2, 3]
+            funcao accept(lista numero received) -> numero {
+                retornar tamanho(received)
+            }
+            numero first = accept(values)
+            numero second = accept(values)
+            values[1] = "invalid"
+            mostrar(first, second)
+        """
+        result = self.run_native(source)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("tipo incompatível no array", result.stderr)
+
+    def test_native_vm_declare_rejects_mismatched_cached_array_type(self):
+        source = """
+            lista texto original = ["abc"]
+            lista numero incorreta = original
+            mostrar(incorreta)
+        """
+        _, _, bytecode = compile_source(source)
+
+        def remove_typed_array_conversion(program):
+            typed_indices = [
+                index for index, instruction in enumerate(program["main"])
+                if instruction.get("op") == "MAKE_TYPED_ARRAY"
+            ]
+            self.assertEqual(len(typed_indices), 2)
+            del program["main"][typed_indices[1]]
+
+        malformed = _rewrite_binary_program(bytecode, remove_typed_array_conversion)
+        path = Path(self.temp.name) / "typed-array-mismatched-declare.gbc"
+        path.write_bytes(malformed)
+        result = subprocess.run(
+            [str(self.vm_binary), str(path)],
+            text=True, capture_output=True, check=False,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("elemento inválido no array tipado", result.stderr)
+
     def test_native_vm_indexes_large_instruction_blocks_and_jumps(self):
         declarations = "\n".join(f"numero value_{i} = {i}" for i in range(160))
         source = declarations + """
@@ -1798,8 +2131,8 @@ mostrar(total, value_159)
 
     def test_native_env_reserve_keeps_reallocated_pointers_on_oom(self):
         import shutil
-        clang = shutil.which("clang")
-        self.assertIsNotNone(clang, "Clang é necessário para o teste do alocador")
+        compiler = os.environ.get("GP_C_COMPILER") or shutil.which("clang")
+        self.assertIsNotNone(compiler, "Defina GP_C_COMPILER ou instale Clang para o teste do alocador")
         harness = Path(self.temp.name) / "env-reserve-oom.c"
         executable = Path(self.temp.name) / "env-reserve-oom"
         harness_text = r"""#define main gpvm_native_program_main
@@ -1837,7 +2170,49 @@ int main(void) {
             encoding="utf-8",
         )
         compiled = subprocess.run(
-            [clang, "-std=c11", "-O2", "-Wall", "-Wextra", str(harness), "-lz", "-lm", "-o", str(executable)],
+            [compiler, "-std=c11", "-O2", "-Wall", "-Wextra", str(harness), "-lz", "-lm", "-o", str(executable)],
+            text=True, capture_output=True, check=False,
+        )
+        self.assertEqual(compiled.returncode, 0, compiled.stderr)
+        result = subprocess.run([str(executable)], text=True, capture_output=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_native_vm_typed_array_validation_memoizes_only_validated_types(self):
+        import shutil
+        compiler = os.environ.get("GP_C_COMPILER") or shutil.which("clang")
+        self.assertIsNotNone(compiler, "Defina GP_C_COMPILER ou instale Clang para o teste da VM")
+        harness = Path(self.temp.name) / "typed-array-cache.c"
+        executable = Path(self.temp.name) / "typed-array-cache"
+        harness_text = r"""#define main gpvm_native_program_main
+#include "__GPVM_NATIVE_C__"
+#undef main
+int main(void) {
+    Value valid_items[3] = {number_value(1), number_value(2), number_value(3)};
+    Array valid_array = {valid_items, 3, 3, NULL};
+    Value valid = null_value(); valid.type = V_ARRAY; valid.array = &valid_array;
+    if (!value_matches("lista<numero>", valid)) return 1;
+    if (!valid_array.element_type || strcmp(valid_array.element_type, "numero") != 0) return 2;
+    if (!value_matches("lista<numero>", valid)) return 3;
+    if (value_matches("lista<texto>", valid)) return 4;
+    if (!array_validate_type(&valid_array, "numero")) return 5;
+    if (array_validate_type(&valid_array, "texto")) return 6;
+
+    Value invalid_items[1] = {{.type = V_STRING, .string = "invalido"}};
+    Array invalid_array = {invalid_items, 1, 1, NULL};
+    Value invalid = null_value(); invalid.type = V_ARRAY; invalid.array = &invalid_array;
+    if (value_matches("lista<numero>", invalid)) return 7;
+    if (invalid_array.element_type) return 8;
+    if (array_validate_type(&invalid_array, "numero")) return 9;
+    free(valid_array.element_type);
+    return 0;
+}
+        """
+        harness.write_text(
+            harness_text.replace("__GPVM_NATIVE_C__", (self.project / "gpvm_native.c").as_posix()),
+            encoding="utf-8",
+        )
+        compiled = subprocess.run(
+            [compiler, "-std=c11", "-O2", "-Wall", "-Wextra", str(harness), "-lz", "-lm", "-o", str(executable)],
             text=True, capture_output=True, check=False,
         )
         self.assertEqual(compiled.returncode, 0, compiled.stderr)
@@ -2318,6 +2693,46 @@ int main(void) {
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), "11 a 🧠 c")
 
+    def test_native_vm_utf8_sparse_index_cache_and_gc_release(self):
+        import shutil
+        compiler = os.environ.get("GP_C_COMPILER") or shutil.which("clang")
+        self.assertIsNotNone(compiler, "Defina GP_C_COMPILER ou instale Clang para o teste UTF-8")
+        harness = Path(self.temp.name) / "utf8-index-cache.c"
+        executable = Path(self.temp.name) / "utf8-index-cache"
+        harness_text = r"""#define main gpvm_native_program_main
+#include "__GPVM_NATIVE_C__"
+#undef main
+int main(void) {
+    VM vm; memset(&vm, 0, sizeof(vm));
+    const char *source = "01234567890123456789012345678901éX🚀Y";
+    Value value = string_value_bytes(&vm, source, strlen(source));
+    if (!value.string) return 1;
+    GPGCHeader *header = gp_gc_header(value.string);
+    if (!header || (header->flags & GP_GC_STRING_ASCII)) return 2;
+    Value item;
+    if (!string_index_value(&vm, value.string, 32, &item) || strcmp(item.string, "é") != 0) return 3;
+    if (!header->utf8_offsets || header->utf8_offset_count != 2 || header->utf8_codepoints != 36) return 4;
+    size_t *cached_offsets = header->utf8_offsets;
+    if (!string_index_value(&vm, value.string, 34, &item) || strcmp(item.string, "🚀") != 0) return 5;
+    if (header->utf8_offsets != cached_offsets) return 6;
+    if (string_index_value(&vm, value.string, 36, &item)) return 7;
+    gp_gc_collect(&vm);
+    if (vm.gc_objects || vm.gc_bytes || gp_heap_bytes) return 8;
+    return 0;
+}
+"""
+        harness.write_text(
+            harness_text.replace("__GPVM_NATIVE_C__", (self.project / "gpvm_native.c").as_posix()),
+            encoding="utf-8",
+        )
+        compiled = subprocess.run(
+            [compiler, "-std=c11", "-O2", "-Wall", "-Wextra", str(harness), "-lz", "-lm", "-o", str(executable)],
+            text=True, capture_output=True, check=False,
+        )
+        self.assertEqual(compiled.returncode, 0, compiled.stderr)
+        result = subprocess.run([str(executable)], text=True, capture_output=True, check=False)
+        self.assertEqual(result.returncode, 0, f"exit={result.returncode} stderr={result.stderr}")
+
     def test_native_vm_ascii_string_index_reuses_cached_characters(self):
         source = """
             texto fonte = "abcdef"
@@ -2366,6 +2781,10 @@ int main(void) {
         self.assertGreater(report["native_peak_bytes"], 0)
         self.assertGreater(report["managed_peak_bytes"], 0)
         self.assertGreater(report["managed_payload_peak_bytes"], 0)
+        self.assertGreater(report["gc_allocated_objects"], 0)
+        self.assertGreaterEqual(report["gc_collections"], 0)
+        self.assertGreaterEqual(report["gc_freed_objects"], 0)
+        self.assertGreaterEqual(report["gc_reclaimed_bytes"], 0)
         self.assertGreater(report["process_rss_bytes"], 0)
         self.assertGreater(report["process_peak_rss_bytes"], 0)
         self.assertGreaterEqual(report["process_peak_rss_bytes"], report["process_rss_bytes"])
@@ -2376,6 +2795,9 @@ int main(void) {
         self.assertIn("GP memória: pico", result.stderr)
 
     def test_native_vm_garbage_collector_reclaims_garbage_and_keeps_roots(self):
+        import json
+        import os
+        report_path = Path(self.temp.name) / "gc-stress-memory.json"
         source = """
             estrutura Pessoa {
                 texto nome;
@@ -2396,11 +2818,81 @@ int main(void) {
             }
             mostrar(exercitar())
         """
-        result = self.run_native(source, extra=("--gc-threshold", "1024"))
+        report_env = os.environ.copy()
+        report_env["GPVM_MEMORY_REPORT"] = str(report_path)
+        result = self.run_native(
+            source,
+            extra=("--gc-threshold", "1024"),
+            env=report_env,
+        )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), "82")
         self.assertRegex(result.stderr, r"GP GC: [1-9][0-9]* ciclos, [1-9][0-9]* objetos liberados")
         self.assertRegex(result.stderr, r"[0-9.]+ MiB recuperados")
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+        self.assertGreater(report["gc_collections"], 0)
+        self.assertGreater(report["gc_allocated_objects"], 0)
+        self.assertGreater(report["gc_freed_objects"], 0)
+        self.assertGreater(report["gc_reclaimed_bytes"], 0)
+
+    def test_native_vm_iterative_gc_handles_deep_object_graph_without_c_stack(self):
+        import shutil
+        compiler = os.environ.get("GP_C_COMPILER") or shutil.which("gcc") or shutil.which("clang")
+        self.assertIsNotNone(compiler, "Defina GP_C_COMPILER ou instale GCC/Clang")
+        harness = Path(self.temp.name) / "gc-deep-graph.c"
+        executable = Path(self.temp.name) / "gc-deep-graph"
+        harness_text = r"""#define main gpvm_native_program_main
+#include "__GPVM_NATIVE_C__"
+#undef main
+int main(void) {
+    enum { DEPTH = 100000 };
+    VM vm; memset(&vm, 0, sizeof(vm));
+    Value root_value = null_value();
+    Value *root_stack = &root_value;
+    size_t root_len = 1;
+    VMRoot root; memset(&root, 0, sizeof(root));
+    root.stack = &root_stack;
+    root.stack_len = &root_len;
+    vm.roots = &root;
+
+    Value previous = null_value();
+    for (size_t i = 0; i < DEPTH; i++) {
+        Array *array = (Array *)gp_gc_alloc(&vm, sizeof(Array), GP_GC_ARRAY);
+        if (!array) return 1;
+        array->items = (Value *)calloc(1, sizeof(Value));
+        if (!array->items) return 2;
+        array->len = array->cap = 1;
+        array->items[0] = previous;
+        previous = null_value();
+        previous.type = V_ARRAY;
+        previous.array = array;
+    }
+    root_value = previous;
+
+    gp_gc_collect(&vm);
+    size_t live = 0;
+    for (GPGCHeader *item = vm.gc_objects; item; item = item->next) live++;
+    if (live != DEPTH || vm.gc_freed_objects != 0) return 3;
+
+    root_len = 0;
+    gp_gc_collect(&vm);
+    if (vm.gc_objects || vm.gc_bytes || gp_heap_bytes) return 4;
+    gp_gc_cleanup(&vm);
+    gp_memory_cleanup();
+    return 0;
+}
+"""
+        harness.write_text(
+            harness_text.replace("__GPVM_NATIVE_C__", (self.project / "gpvm_native.c").as_posix()),
+            encoding="utf-8",
+        )
+        compiled = subprocess.run(
+            [compiler, "-std=c11", "-O2", "-Wall", "-Wextra", "-Wpedantic", str(harness), "-lz", "-lm", "-o", str(executable)],
+            text=True, capture_output=True, check=False,
+        )
+        self.assertEqual(compiled.returncode, 0, compiled.stderr)
+        result = subprocess.run([str(executable)], text=True, capture_output=True, check=False)
+        self.assertEqual(result.returncode, 0, f"exit={result.returncode} stderr={result.stderr}")
 
     def test_native_vm_rejects_trailing_compressed_bytes(self):
         _, _, bytecode = compile_source("mostrar(42)")

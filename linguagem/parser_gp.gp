@@ -630,6 +630,50 @@ funcao parse_controle_laco_gp() -> logico {
     retornar verdadeiro
 }
 funcao parse_comando_gp() -> logico {
+    // Importacao e preservada como declaracao tipada na AST GP.
+    // O linker do frontend ainda precisa resolver o modulo antes da semantica.
+    se (atual_parser() == "usar") {
+        avancar_parser()
+        se (lexer.classificar_lexema_gp(atual_parser()) != "TEXTO") {
+            erro_parser = verdadeiro
+            mensagem_parser = "Caminho de modulo esperado apos usar"
+            retornar falso
+        }
+        texto caminho_importacao_gp = atual_parser()
+        texto caminho_sem_aspas_gp = ""
+        numero cursor_caminho_gp = 1
+        enquanto (cursor_caminho_gp < tamanho(caminho_importacao_gp) - 1) {
+            caminho_sem_aspas_gp = caminho_sem_aspas_gp + caminho_importacao_gp[cursor_caminho_gp]
+            cursor_caminho_gp = cursor_caminho_gp + 1
+        }
+        avancar_parser()
+        se (!consumir_parser("como")) { retornar falso }
+        se (lexer.classificar_lexema_gp(atual_parser()) != "IDENTIFICADOR") {
+            erro_parser = verdadeiro
+            mensagem_parser = "Alias de modulo esperado apos como"
+            retornar falso
+        }
+        texto alias_importacao_gp = atual_parser()
+        avancar_parser()
+        lista numero filhos_importacao_gp = []
+        criar_no_ast_gp("IMPORT", caminho_sem_aspas_gp + "|" + alias_importacao_gp, filhos_importacao_gp)
+        aceitar_parser(";")
+        retornar verdadeiro
+    }
+    // Cabecalho de programa: metadado do arquivo, sem instrucao no bytecode.
+    se (atual_parser() == "programa") {
+        avancar_parser()
+        se (lexer.classificar_lexema_gp(atual_parser()) != "TEXTO") {
+            erro_parser = verdadeiro
+            mensagem_parser = "Texto esperado apos declaracao programa"
+            retornar falso
+        }
+        se (!parse_primaria_gp()) { retornar falso }
+        lista numero filhos_programa_info = []
+        criar_no_ast_gp("VAZIO", "programa", filhos_programa_info)
+        aceitar_parser(";")
+        retornar verdadeiro
+    }
     // Comando vazio (incluindo o ponto e virgula apos um bloco).
     se (atual_parser() == ";") {
         avancar_parser()
@@ -1493,6 +1537,11 @@ funcao gerar_ir_ast_gp(numero raiz_ir) -> logico {
     enquanto (comando_raiz_ir < quantidade_filhos_ast_gp(raiz_ir)) {
         indice_comando_raiz_ir = obter_filho_ast_gp(raiz_ir, comando_raiz_ir)
         no_comando_raiz_ir = obter_no_ast_gp(indice_comando_raiz_ir)
+        se (no_comando_raiz_ir.categoria == "IMPORT") {
+            erro_ir_gp = verdadeiro
+            diagnostico_ir_gp = "Importacao GP precisa ser resolvida antes da geracao do GP-IR: " + no_comando_raiz_ir.valor
+            retornar falso
+        }
         se (no_comando_raiz_ir.categoria == "FUNCAO") {
             se (!gerar_funcao_ir_gp(indice_comando_raiz_ir)) { retornar falso }
         } senao {
@@ -1807,6 +1856,14 @@ mostrar("AST array:", resumo_no_ast_gp(array_ast), quantidade_filhos_ast_gp(arra
 mostrar("AST logico:", resumo_no_ast_gp(logica_ast))
 mostrar("AST campo:", resumo_no_ast_gp(campo_ast))
 mostrar("AST indice:", resumo_no_ast_gp(indice_ast))
+
+// Regressao GP 0.9: import deve sobreviver como no tipado da AST.
+logico exemplo_import_ast_gp = validar_sintaxe_gp("usar \"biblioteca.gp\" como biblioteca")
+mostrar("Parser GP preserva import na AST:", exemplo_import_ast_gp)
+se (exemplo_import_ast_gp) {
+    numero no_import_ast_gp = obter_filho_ast_gp(raiz_ast_gp, 0)
+    mostrar("AST import:", resumo_no_ast_gp(no_import_ast_gp))
+}
 logico exemplo_ast_invalido = validar_sintaxe_gp("numero total = 10 + ;")
 mostrar("Parser GP rejeita erro:", !exemplo_ast_invalido)
 mostrar("Diagnostico:", mensagem_parser)
@@ -2299,6 +2356,25 @@ funcao tipo_expressao_semantica_ast_gp(numero indice, numero escopo) -> texto {
             }
             retornar valor
         }
+        se (valor == "py_chamar" || valor == "host_chamar") {
+            se (quantidade_filhos_ast_gp(indice) != 2) {
+                erro_semantico_ast_gp = valor + " exige dois argumentos: identificador e lista"
+                retornar "desconhecido"
+            }
+            texto tipo_capacidade_python_gp = tipo_expressao_semantica_ast_gp(obter_filho_ast_gp(indice, 0), escopo)
+            se (erro_semantico_ast_gp != "") { retornar "desconhecido" }
+            se (tipo_capacidade_python_gp != "texto") {
+                erro_semantico_ast_gp = "O primeiro argumento de " + valor + " deve ser texto"
+                retornar "desconhecido"
+            }
+            texto tipo_argumentos_python_gp = tipo_expressao_semantica_ast_gp(obter_filho_ast_gp(indice, 1), escopo)
+            se (erro_semantico_ast_gp != "") { retornar "desconhecido" }
+            se (tipo_elemento_lista_semantica_ast_gp(tipo_argumentos_python_gp) == "") {
+                erro_semantico_ast_gp = "O segundo argumento de " + valor + " deve ser uma lista"
+                retornar "desconhecido"
+            }
+            retornar "desconhecido"
+        }
         numero f = 0
         numero encontrado = -1
         enquanto (f < tamanho(nomes_funcoes_semanticas_gp)) { se (nomes_funcoes_semanticas_gp[f] == valor) { encontrado = f }; f = f + 1 }
@@ -2460,7 +2536,7 @@ funcao analisar_comando_semantico_ast_gp(numero indice, numero escopo) -> logico
         }
         tipo_real = tipo_expressao_semantica_ast_gp(no.filhos[0], escopo)
         se (erro_semantico_ast_gp != "") { retornar falso }
-        se (tipo_declarado != tipo_real) {
+        se (tipo_real != "desconhecido" && tipo_declarado != tipo_real) {
             texto elemento_esperado = tipo_elemento_lista_semantica_ast_gp(tipo_declarado)
             texto elemento_recebido = tipo_elemento_lista_semantica_ast_gp(tipo_real)
             se (elemento_esperado == "" || elemento_recebido != "desconhecido" && elemento_esperado != elemento_recebido) {
@@ -2513,7 +2589,7 @@ funcao analisar_comando_semantico_ast_gp(numero indice, numero escopo) -> logico
         }
         tipo_real = tipo_expressao_semantica_ast_gp(no.filhos[1], escopo)
         se (erro_semantico_ast_gp != "") { retornar falso }
-        se (tipo_declarado != tipo_real) {
+        se (tipo_real != "desconhecido" && tipo_declarado != tipo_real) {
             texto elemento_esperado_atribuicao = tipo_elemento_lista_semantica_ast_gp(tipo_declarado)
             texto elemento_recebido_atribuicao = tipo_elemento_lista_semantica_ast_gp(tipo_real)
             se (elemento_esperado_atribuicao == "" || elemento_recebido_atribuicao != "desconhecido" && elemento_esperado_atribuicao != elemento_recebido_atribuicao) {
@@ -2522,6 +2598,10 @@ funcao analisar_comando_semantico_ast_gp(numero indice, numero escopo) -> logico
             }
         }
         retornar verdadeiro
+    }
+    se (no.categoria == "IMPORT") {
+        erro_semantico_ast_gp = "Importacao GP ainda nao foi resolvida pelo linker nativo: " + no.valor
+        retornar falso
     }
     se (no.categoria == "ESTRUTURA" || no.categoria == "VAZIO") { retornar verdadeiro }
     se (no.categoria == "FUNCAO") {
@@ -2598,7 +2678,7 @@ funcao analisar_comando_semantico_ast_gp(numero indice, numero escopo) -> logico
         texto tipo_retorno = "vazio"
         se (quantidade_filhos_ast_gp(indice) > 0) { tipo_retorno = tipo_expressao_semantica_ast_gp(obter_filho_ast_gp(indice, 0), escopo) }
         se (erro_semantico_ast_gp != "") { retornar falso }
-        se (tipo_retorno != retorno_funcao_atual_semantica_gp) { erro_semantico_ast_gp = "Retorno incompativel: esperado " + retorno_funcao_atual_semantica_gp + ", recebido " + tipo_retorno; retornar falso }
+        se (tipo_retorno != retorno_funcao_atual_semantica_gp && tipo_retorno != "desconhecido") { erro_semantico_ast_gp = "Retorno incompativel: esperado " + retorno_funcao_atual_semantica_gp + ", recebido " + tipo_retorno; retornar falso }
         retornar verdadeiro
     }
     se (no.categoria == "BLOCO") {

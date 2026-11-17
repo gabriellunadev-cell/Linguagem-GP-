@@ -23,7 +23,7 @@ class Scope:
 
 
 class SemanticAnalyzer:
-    BUILTINS = {"tamanho", "adicionar", "remover", "entrada_fonte", "unir_textos"}
+    BUILTINS = {"tamanho", "adicionar", "remover", "entrada_fonte", "unir_textos", "py_chamar", "host_chamar"}
 
     def __init__(self):
         self.functions: dict[str, tuple[list[str], str | None]] = {}
@@ -118,6 +118,15 @@ class SemanticAnalyzer:
             if name is None:
                 self._error("Chamada de função inválida")
                 return "desconhecido"
+            if name in ("py_chamar", "host_chamar"):
+                if len(actual) != 2:
+                    self._error(f"{name}() exige 2 argumentos: identificador e lista")
+                else:
+                    if actual[0] not in ("texto", "desconhecido"):
+                        self._error(f"{name}(): o primeiro argumento precisa ser texto")
+                    if actual[1] not in ("lista", "desconhecido"):
+                        self._error(f"{name}(): o segundo argumento precisa ser uma lista")
+                return "desconhecido"
             if name == "entrada_fonte":
                 if actual: self._error("entrada_fonte() não aceita argumentos")
                 return "texto"
@@ -196,7 +205,10 @@ class SemanticAnalyzer:
         if node.line is not None:
             self.current_location = (node.line, node.column or 1)
         kind, args = node.kind, node.args
-        if kind in ("empty", "struct", "import"):
+        if kind == "import":
+            self._error("Importação GP não resolvida pelo linker AST")
+            return
+        if kind in ("empty", "struct"):
             return
         if kind == "declare":
             typ, element_type, name, expr = args

@@ -1,0 +1,63 @@
+{
+  "schema_version": 4,
+  "runtime": "gpvm_native.c",
+  "host_verified": [
+    "linux-x86_64"
+  ],
+  "runtime_verified_targets": [
+    {
+      "id": "linux-aarch64",
+      "triple": "aarch64-linux-gnu",
+      "toolchain": "GCC AArch64 cross compiler",
+      "status": "runtime_verified_under_qemu",
+      "compiler": "aarch64-linux-gnu-gcc",
+      "artifact": "build/gpvm-native-linux-arm64",
+      "runtime_test": "QEMU qemu-aarch64 -L /usr/aarch64-linux-gnu",
+      "validation_date": "2026-11-15",
+      "validation": "Rebuilt from current source; same modular GP bytecode executed by QEMU and host x86_64 VM; exact output: Resultado do módulo: 42"
+    },
+    {
+      "id": "windows-x64",
+      "triple": "x86_64-w64-mingw32",
+      "toolchain": "MSYS2 UCRT64 MinGW-w64 GCC on GitHub Actions windows-latest",
+      "status": "runtime_verified_on_windows_ci",
+      "compiler": "mingw-w64-ucrt-x86_64-gcc",
+      "artifact": null,
+      "artifact_id": 14188530982,
+      "artifact_archive_sha256": "5f37362997300e40b978fe6a077358ccb3b3ff4c175c9aab6f9e872205f27753",
+      "workflow_run_id": 43780443476,
+      "workflow_run": "https://github.com/gabriellunadev-cell/Linguagem-GP-/actions/runs/43780443476",
+      "runtime_test": "GitHub Actions windows-latest; native VM compiled and executed a modular GP project",
+      "validation_date": "2026-11-16",
+      "validation": "Build completed; compile/run with --self-hosted, native runner, native encoder and --run-vm native; exact output: Resultado do módulo: 42; marker GP_WINDOWS_X64_RUNTIME_OK",
+      "artifact_name": "gp-windows-x64-runtime-validation"
+    }
+  ],
+  "historically_runtime_verified_targets": [
+    {
+      "id": "wasm32-wasi",
+      "triple": "wasm32-wasi",
+      "toolchain": "Clang 18 + WASI libc + static zlib",
+      "status": "historically_runtime_verified_under_wasmtime",
+      "artifact": "build/gpvm-native-wasi.wasm",
+      "runtime_test": "Wasmtime 50.0.1 WASI preview1",
+      "validation_date": "2026-11-08",
+      "validation": "Prior recorded modular GP project run returned Resultado do módulo: 42",
+      "current_session": "Not rerun in this session; runtime binding and WASI zlib prefix unavailable"
+    }
+  ],
+  "cross_compiled_targets": [],
+  "planned_targets": [
+    {
+      "id": "android-arm64",
+      "triple": "aarch64-linux-android",
+      "toolchain": "Android NDK LLVM clang",
+      "required_env": "ANDROID_NDK_HOME",
+      "status": "not_verified",
+      "blockers": [
+        "Android NDK/Bionic compilation and device runtime need validation",
+        "Android SDK license acceptance is required before NDK installation"
+      ]
+    }
+  ]
+}

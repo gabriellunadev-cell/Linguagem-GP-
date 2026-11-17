@@ -27,7 +27,7 @@ O binário nativo existente foi preservado; não foi recompilado nesta etapa. As
 1. O probe do parser conclui 878.748 instruções em aproximadamente 1,19 s e usa cerca de 10,83 MiB de heap GP no pico.
 2. O frontend completo tem custo muito superior: já aloca 184 mil objetos antes de atingir 1 milhão de passos, com strings representando a maior parte das alocações gerenciadas observadas.
 3. Os dados justificam perfilar concatenação/construção de lexemas e consultas de símbolos, mas ainda não provam que esses pontos sejam os únicos gargalos. A próxima otimização deve ser precedida por benchmarks por fase e testes de equivalência.
-4. A prova estrita N → N+1 → N+2 continua **não aprovada** nesta tentativa. Resultados históricos de bootstrap reprodutível não devem ser confundidos com a prova estrita atual, que exige consumir o seed fixo sem regeneração Python.
+4. Nesta medição Android/Termux ARM64, a prova estrita não foi concluída por limite de passos/timeout. A revalidação posterior no VPS x86_64 está documentada separadamente em `ENGINEERING_STATUS.md`; não misturar esses resultados.
 
 ## Método e reprodutibilidade
 
@@ -38,6 +38,25 @@ O binário nativo existente foi preservado; não foi recompilado nesta etapa. As
 - Probe: `build/probe_parser_direct.gbc`, três execuções.
 - Seed: `artifacts/bootstrap/gp_frontend_runner.gbc`, fonte expandida fornecida via `--source-input -`.
 - Relatórios brutos locais: `build/perf-baseline/` (artefatos de medição, não necessários ao runtime).
+
+## Perfil exploratório na VPS x86_64 — 2026-11-08
+
+Este perfil foi coletado durante a prova N+1→N+2 no VPS, após a implementação do índice esparso UTF-8. Foram 397 amostras de CPU; a distribuição observada foi `execute_code` ~51,05%, `gp_gc_mark_value` ~17,28%, `json_string` ~3,57% e `token_eq` ~2,38%. A função `utf8_decode_one` deixou de aparecer entre os principais consumidores no perfil posterior à otimização.
+
+O perfil sugere que a marcação do coletor de lixo e o loop principal da VM são os próximos alvos de investigação. A amostra é curta e exploratória, não é benchmark estatístico nem prova de aceleração global. Não comparar diretamente estes percentuais ou tempos com o baseline medido no Android ARM64; uma comparação válida exige repetir o mesmo harness e condições na mesma arquitetura/hardware.
+
+## Experimento de limiar do GC na VPS x86_64 — 2026-11-08
+
+Workload sintético de 50.000 iterações, com substituição repetida de listas e concatenação de texto; três execuções por limiar. O limiar é o mínimo adaptativo (`--gc-threshold`), não um limite absoluto de heap.
+
+| Limiar mínimo | Mediana | Ciclos GC | Heap pico | RSS pico |
+|---|---:|---:|---:|---:|
+| 1 MiB | 0,7425 s | 3 | 10,50 MiB | 20,38 MiB |
+| 4 MiB | 0,6390 s | 0 | 32,46 MiB | 37,88 MiB |
+
+Os testes de 8, 16 e 32 MiB não apresentaram vantagem estável de tempo; mantiveram o heap alto por mais tempo. O ganho de ~14% no microbenchmark de 4 MiB não se repetiu de forma convincente na prova completa: N→N+1 fez 1.041 coletas contra 1.053 em 1 MiB (redução de ~1,1%), mas o heap pico subiu para 136,52 MiB e o RSS pico para 176,49 MiB, contra 75,56/92,44 MiB no padrão. O N+1 gerado permaneceu byte a byte idêntico; a medição foi encerrada antes do segundo estágio e não constitui uma prova 4 MiB N→N+1→N+2.
+
+**Decisão:** manter 1 MiB como padrão. O limiar de 4 MiB melhora apenas o microbenchmark curto, mas quase não reduz coletas no frontend completo e consome muito mais memória. A próxima otimização deve atuar no custo da marcação (`gp_gc_mark_value`) e na execução do bytecode, não em adiar coletas de forma ampla.
 
 ## Próximos passos
 

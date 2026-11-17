@@ -1,4 +1,9 @@
 
+# REGISTRO HISTÓRICO — NÃO É A SAÍDA DA PROVA VPS DE 2026-11-08 22:47–22:49 UTC.
+# Este arquivo preserva duas execuções anteriores (72.464.879 instruções cada).
+# Para a prova VPS atual, use proof.json e memory_n_to_n1.json / memory_n1_to_n2.json.
+# O script provar_bootstrap_gp.py não persiste stderr dos estágios; não atribuir estes contadores à prova atual.
+
 === NATIVE FRONTEND RUN ===
 returncode=0
 [GP Native VM: 72464879 instruções]

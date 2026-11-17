@@ -1,12 +1,13 @@
 # GP — Gabriel Programming
 
-> GP 0.8.52 validada no Termux/Android ARM64: 245 testes (238 da linguagem + 7 do GP Bridge), corpus diferencial 6/6, fuzz 64 sem divergências e bootstrap N→N+1→N+2 reproduzível (N+1 == N+2, SHA-256 registrado). A biblioteca inicial inclui `unir_textos(lista texto)` e serialização GP-IR em lote. A autohospedagem integral ainda é um objetivo, não um recurso concluído. Consulte ENGINEERING_STATUS.md e docs/RELEASE_CRITERIA_1.0.0.md.
+> GP 0.8.53: Host Capabilities ABI v1 nos runtimes Python e C, com GP-IR v1 e GGPC v2 preservados. Validação completa: 335 testes aprovados, corpus 6/6, fuzz 64 sem divergências, runtime Host ABI x86-64 e Linux ARM64/QEMU aprovados. Windows x64 PE foi cross-compilado; execução Windows desta revisão aguarda CI. Android NDK/Bionic e WASI seguem pendentes.
+
 
 Linguagem proprietária do projeto Gabriel Luna, com prioridade de desenvolvimento e execução no Android ARM64.
 
 ## Estado de engenharia
 
-O CLI separa a VM que executa o frontend auto-hospedado (`--runner-vm`) da VM que executa o programa compilado (`--run-vm`). O modo nativo pode usar a VM C para o runner, o encoder GGPC v2 e a execução do alvo. A fonte do runner e o GP-IR do encoder são transmitidos por stdin com limites explícitos, sem arquivos temporários de texto. A orquestração, a resolução de módulos e a geração inicial do artefato bootstrap ainda têm dependências Python; a autohospedagem integral não foi concluída.
+O CLI separa a VM que executa o frontend auto-hospedado (`--runner-vm`) da VM que executa o programa compilado (`--run-vm`). O modo nativo pode usar a VM C para o runner, o encoder GGPC v2 e a execução do alvo. Para arquivos únicos sem imports, `scripts/gpc-native` executa frontend GP + VM C + encoder C sem iniciar Python. A geração inicial do runner, o driver CLI de compatibilidade e a leitura/validação do grafo de módulos ainda dependem do host Python; a autohospedagem integral não foi concluída.
 
 ## Especificações e estabilidade
 
@@ -14,14 +15,17 @@ O CLI separa a VM que executa o frontend auto-hospedado (`--runner-vm`) da VM qu
 - [Bytecode v2](docs/BYTECODE_V2_SPEC.md): contêiner binário e envelope.
 - [Critérios da versão 1.0.0](docs/RELEASE_CRITERIA_1.0.0.md): requisitos verificáveis para estabilização e release.
 - [Plano de autossuficiência](docs/SELF_HOSTING.md): diagnóstico e etapas para eliminar a dependência de Python do toolchain.
+- [Resolução de módulos em GP](docs/GP_MODULE_RESOLVER.md): migração gradual do grafo de imports.
+- [Alvos multiplataforma](docs/MULTIPLATFORM.md): estado verificado e requisitos Android, Windows e WASI.
 
 A GP permanece em versão 0.x enquanto os portões de estabilidade do documento 1.0.0 não forem satisfeitos.
 - [GP Host Input](docs/GP_HOST_INPUT_SPEC.md): entrada textual explícita fornecida pelo host.
 - [Biblioteca padrão](docs/GP_STANDARD_LIBRARY.md): contratos iniciais, incluindo `unir_textos`.
+- [GP Host Capabilities ABI v1](docs/HOST_CAPABILITIES_ABI.md): capacidades portáveis com despacho nas VMs Python e C.
 
 ## Estado atual
 
-**GP Core 0.4 + toolchain nativo experimental (ciclo 0.8.52: 238 testes aprovados; `unir_textos` e serialização em lote implementados; prova de bootstrap otimizada em validação; autohospedagem integral ainda pendente).**
+**GP Core 0.4 + toolchain nativo experimental: 335 testes aprovados; GC iterativo; compilação nativa de arquivo único e projetos com imports; Host ABI validado no runtime Python, C x86_64 e C Linux ARM64 via QEMU; Windows x64 PE cross-compilado, execução da revisão atual aguardando CI. Android NDK/Bionic e WASI continuam pendentes; autohospedagem integral permanece em desenvolvimento.**
 
 Existem três caminhos no projeto:
 
@@ -68,6 +72,17 @@ Executar o harness diferencial limitado:
     make fuzz-bytecode FUZZ_ITERATIONS=64 FUZZ_SEED=0x47505632 FUZZ_TIMEOUT=2 FUZZ_REPORT=build/fuzz-reports/latest.json
 
 O harness compara os loaders/VMs Python e C em mutações válidas e inválidas; limites e interpretação dos resultados estão em docs/BYTECODE_V2_SPEC.md, seção 11. Este smoke fuzzing não substitui fuzzing guiado por cobertura.
+
+## GP Host Capabilities ABI v1
+
+A biblioteca portável de capacidades do host oferece operações de matemática e estatística na VM Python e na VM C, sem depender de libpython. O builtin host_chamar usa IDs versionados (gp.core.v1.*), catálogo fechado e limites por execução. O ABI está documentado em [docs/HOST_CAPABILITIES_ABI.md](docs/HOST_CAPABILITIES_ABI.md), e os wrappers GP ficam em biblioteca/host.gp.
+
+Execute o exemplo nos dois runtimes:
+
+    ./bin/gpc exemplos/host_capabilities.gp --run
+    ./bin/gpc exemplos/host_capabilities.gp --self-hosted --runner-vm native --run --run-vm native
+
+A extensão py_chamar continua separada, exige --python-interop e só executa na VM Python de referência.
 
 ## Backend nativo experimental
 

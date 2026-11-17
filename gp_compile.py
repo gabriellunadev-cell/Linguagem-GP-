@@ -25,6 +25,19 @@ from gpcompiler.vm import GPVirtualMachine, GPVMError
 
 
 
+def _fsync_parent_directory(parent: Path) -> None:
+    """Persist the directory entry on POSIX; Windows has no portable directory fsync."""
+    if os.name == "nt":
+        # The file itself was flushed with fsync before os.replace. Windows does not
+        # expose a portable POSIX-style directory descriptor for a second fsync.
+        return
+    directory_fd = os.open(parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    try:
+        os.fsync(directory_fd)
+    finally:
+        os.close(directory_fd)
+
+
 def write_bytecode_atomic(output_path: str | Path, bytecode: bytes) -> None:
     """Publish a complete GGPC artifact atomically in the destination directory."""
     destination = Path(output_path)
@@ -47,11 +60,7 @@ def write_bytecode_atomic(output_path: str | Path, bytecode: bytes) -> None:
             os.fsync(stream.fileno())
         os.replace(temporary_path, destination)
         temporary_path = None
-        directory_fd = os.open(parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
-        try:
-            os.fsync(directory_fd)
-        finally:
-            os.close(directory_fd)
+        _fsync_parent_directory(parent)
     except OSError as exc:
         raise ValueError(f"não foi possível publicar bytecode atomicamente em {destination}: {exc}") from exc
     finally:
@@ -142,6 +151,12 @@ def encode_canonical_ir_native(
 
 
 def compile_source(source: str, source_path: str | Path | None = None):
+    # GP validates dependency order/cycles; import declarations stay in source
+    # until AST linking. The host owns only secure reads and canonical paths.
+    from gpcompiler.source_modules import expand_source_modules_gp
+    source = expand_source_modules_gp(
+        source, source_path, prefer_native=False, ast_only=True
+    )
     try:
         parser_tree = Parser(lex(source)).parse()
     except GPError as exc:
@@ -199,177 +214,17 @@ def _rename_module_calls(source: str, function_names: set[str], prefix: str) -> 
 
 def _expand_modules_for_selfhosted(
     source: str, source_path: str | Path | None,
+    native_vm: str | Path | None = None,
+    prefer_native: bool = True,
 ) -> str:
-    """Expand a bounded graph of function-only local modules for the GP frontend.
+    """Expand a safe local module graph with GP owning graph ordering and cycles.
 
-    Imports are expanded recursively and receive hierarchical namespaces. Cycles,
-    duplicate aliases/functions, unsupported declarations and excessive module
-    graphs fail closed before the GP-owned parser/analyzer sees the combined text.
+    The host remains responsible for filesystem access, canonical paths, regular
+    file checks, UTF-8 and byte limits. Dependency traversal and cycle/order
+    decisions execute in resolver_modulos_gp.gp.
     """
-    try:
-        root = from_parser_tree(Parser(lex(source)).parse())
-    except GPError:
-        raise
-    imports = [item for item in root.args[0] if item.kind == "import"]
-    source_tokens = lex(source)
-    source_lines = source.splitlines(keepends=True)
-    removal_edits: list[tuple[int, int, str]] = []
-    if source_tokens and source_tokens[0].kind == "programa":
-        header_line = source_tokens[0].line
-        header_tokens = [
-            token for token in lex(source_lines[header_line - 1])
-            if token.kind != "EOF"
-        ]
-        if len(header_tokens) not in (1, 2) or any(
-            token.kind not in ("programa", "STRING") for token in header_tokens
-        ):
-            raise ValueError("Cabeçalho programa deve ocupar uma linha própria")
-        header_start = sum(len(line) for line in source_lines[:header_line - 1])
-        removal_edits.append((
-            header_start,
-            header_start + len(source_lines[header_line - 1]),
-            "",
-        ))
-    if not imports:
-        return _apply_source_edits(source, removal_edits) if removal_edits else source
-    if source_path is None:
-        raise ValueError("Importação de módulo exige caminho do arquivo principal")
-
-    limits = {"count": 0, "total_bytes": 0}
-    max_modules = 128
-    max_depth = 32
-    max_module_bytes = 4 * 1024 * 1024
-    max_total_module_bytes = 16 * 1024 * 1024
-
-    def line_offsets_for(text: str) -> tuple[list[str], list[int]]:
-        lines = text.splitlines(keepends=True)
-        offsets: list[int] = []
-        offset = 0
-        for line in lines:
-            offsets.append(offset)
-            offset += len(line)
-        return lines, offsets
-
-    def import_line_edit(
-        text: str,
-        lines: list[str],
-        offsets: list[int],
-        statement,
-    ) -> tuple[int, int, str]:
-        if not statement.line or statement.line > len(lines):
-            raise ValueError("Importação GP precisa ocupar uma linha própria")
-        line_index = statement.line - 1
-        line_text = lines[line_index]
-        line_tokens = [token for token in lex(line_text) if token.kind != "EOF"]
-        expected_kinds = ["usar", "STRING", "como", "IDENT"]
-        actual_kinds = [token.kind for token in line_tokens]
-        if actual_kinds not in (expected_kinds, expected_kinds + [";"]):
-            raise ValueError("Cada declaração usar deve ocupar uma linha própria")
-        module_path, alias = statement.args
-        if line_tokens[1].value != module_path or line_tokens[3].value != alias:
-            raise ValueError("Declaração usar inconsistente durante expansão")
-        start_offset = offsets[line_index]
-        return start_offset, start_offset + len(line_text), ""
-
-    def alias_call_edits(
-        text: str, aliases: dict[str, str],
-    ) -> list[tuple[int, int, str]]:
-        if not aliases:
-            return []
-        tokens = lex(text)
-        edits: list[tuple[int, int, str]] = []
-        for index, token in enumerate(tokens[:-3]):
-            if token.kind != "IDENT" or token.value not in aliases:
-                continue
-            dot, member, opening = tokens[index + 1:index + 4]
-            if dot.kind == "." and member.kind == "IDENT" and opening.kind == "(":
-                edits.append((
-                    token.pos,
-                    member.pos + len(member.value),
-                    aliases[token.value] + "__" + member.value,
-                ))
-        return edits
-
-    def expand_module(
-        module_file: Path,
-        namespace: str,
-        stack: tuple[Path, ...],
-    ) -> str:
-        resolved = resolve_module_path(module_file)
-        if resolved in stack:
-            cycle = " -> ".join(str(item) for item in (*stack, resolved))
-            raise ValueError(f"Ciclo de importação GP detectado: {cycle}")
-        if len(stack) >= max_depth:
-            raise ValueError(f"Profundidade de módulos GP excede {max_depth}")
-        if limits["count"] >= max_modules:
-            raise ValueError(f"Quantidade de módulos GP excede {max_modules}")
-        module_source, actual_size = read_module_source(resolved, max_module_bytes)
-        limits["total_bytes"] += actual_size
-        if limits["total_bytes"] > max_total_module_bytes:
-            raise ValueError("Grafo de módulos GP excede o limite total de 16 MiB")
-        limits["count"] += 1
-        module_root = from_parser_tree(Parser(lex(module_source)).parse())
-        module_items = module_root.args[0]
-        module_imports = [item for item in module_items if item.kind == "import"]
-        functions = [item for item in module_items if item.kind == "function"]
-        unsupported = [
-            item.kind for item in module_items
-            if item.kind not in ("function", "import", "empty")
-        ]
-        if unsupported:
-            raise ValueError(
-                f"Módulo {resolved} contém declaração não suportada; "
-                "módulos 0.4 devem exportar funções e importar outros módulos"
-            )
-        names = [item.args[0] for item in functions]
-        if len(names) != len(set(names)):
-            raise ValueError(f"Funções duplicadas no módulo: {resolved}")
-
-        lines, offsets = line_offsets_for(module_source)
-        module_edits: list[tuple[int, int, str]] = []
-        nested_aliases: dict[str, str] = {}
-        nested_sources: list[str] = []
-        for statement in module_imports:
-            nested_path, alias = statement.args
-            if alias in nested_aliases:
-                raise ValueError(f"Alias de módulo duplicado: {alias} em {resolved}")
-            module_edits.append(import_line_edit(
-                module_source, lines, offsets, statement,
-            ))
-            child_namespace = namespace + "__" + alias
-            nested_aliases[alias] = child_namespace
-            child_file = resolved.parent / nested_path
-            nested_sources.append(expand_module(
-                child_file, child_namespace, (*stack, resolved),
-            ))
-        module_edits.extend(alias_call_edits(module_source, nested_aliases))
-        expanded_source = _apply_source_edits(module_source, module_edits)
-        expanded_source = _rename_module_calls(expanded_source, set(names), namespace)
-        parts = [*nested_sources, expanded_source]
-        return "\n".join(part.rstrip() for part in parts if part.strip())
-
-    base = Path(source_path).resolve().parent
-    aliases: dict[str, str] = {}
-    module_sources: list[str] = []
-    lines, offsets = line_offsets_for(source)
-    for statement in imports:
-        module_path, alias = statement.args
-        if alias in aliases:
-            raise ValueError(f"Alias de módulo duplicado: {alias}")
-        removal_edits.append(import_line_edit(source, lines, offsets, statement))
-        namespace = "__gp_namespace_" + alias
-        aliases[alias] = namespace
-        module_sources.append(expand_module(
-            (base / module_path).resolve(), namespace, (),
-        ))
-
-    removal_edits.extend(alias_call_edits(source, aliases))
-    main_source = _apply_source_edits(source, removal_edits)
-    expanded_modules = "\n".join(
-        part.rstrip() for part in module_sources if part.strip()
-    )
-    return expanded_modules + "\n" + main_source
-
+    from gpcompiler.source_modules import expand_source_modules_gp
+    return expand_source_modules_gp(source, source_path, native_vm=native_vm, prefer_native=prefer_native)
 
 
 BOOTSTRAP_RUNNER_DIR = ROOT / "artifacts" / "bootstrap"
@@ -478,7 +333,7 @@ def _strip_gp_top_level_self_tests(source: str) -> str:
 def _selfhosted_runner_source() -> str:
     parser_path = ROOT / "linguagem" / "parser_gp.gp"
     parser_source = parser_path.read_text(encoding="utf-8")
-    expanded_frontend = _expand_modules_for_selfhosted(parser_source, parser_path)
+    expanded_frontend = _expand_modules_for_selfhosted(parser_source, parser_path, prefer_native=False)
     parser_source = _strip_gp_top_level_self_tests(expanded_frontend)
     runner_tail = f"""
     
@@ -614,7 +469,7 @@ def _compile_source_selfhosted_document(
     if isinstance(runner_timeout_seconds, bool) or not isinstance(runner_timeout_seconds, int) or not (1 <= runner_timeout_seconds <= 3600):
         raise ValueError("runner_timeout_seconds deve estar entre 1 e 3.600")
     parser_path = ROOT / "linguagem" / "parser_gp.gp"
-    source = _expand_modules_for_selfhosted(source, source_path)
+    source = _expand_modules_for_selfhosted(source, source_path, native_vm=native_vm)
     runner_bytecode = load_selfhosted_runner_artifact()
     if runner_backend == "python":
         output = io.StringIO()
@@ -757,6 +612,11 @@ def main(argv=None):
     parser.add_argument("-o", "--output", help="Arquivo de bytecode .gbc")
     parser.add_argument("--run", action="store_true", help="Executar o bytecode após compilar")
     parser.add_argument(
+        "--python-interop",
+        action="store_true",
+        help="habilitar a ponte Python allowlisted (somente --run-vm python)",
+    )
+    parser.add_argument(
         "--run-vm",
         choices=("python", "native"),
         default="python",
@@ -793,6 +653,10 @@ def main(argv=None):
         help="limite de instruções do runner GP (máximo 100 milhões)",
     )
     args = parser.parse_args(argv)
+    if args.python_interop and not args.run:
+        parser.error("--python-interop exige --run")
+    if args.python_interop and args.run_vm != "python":
+        parser.error("--python-interop funciona somente com --run-vm python")
     if not 1 <= args.run_max_steps <= 100_000_000:
         parser.error("--run-max-steps deve estar entre 1 e 100.000.000")
     if not 1 <= args.run_timeout_seconds <= 3600:
@@ -843,7 +707,10 @@ def main(argv=None):
         if args.run:
             print(f"GP VM ({args.run_vm}): execução iniciada", flush=True)
             if args.run_vm == "python":
-                GPVirtualMachine(max_steps=args.run_max_steps).run_bytes(bytecode)
+                GPVirtualMachine(
+                    max_steps=args.run_max_steps,
+                    python_interop=args.python_interop,
+                ).run_bytes(bytecode)
             else:
                 native_path = Path(native_vm_path).resolve()
                 if not native_path.is_file():

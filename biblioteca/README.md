@@ -13,8 +13,13 @@ Consulte [GP_STANDARD_LIBRARY.md](../docs/GP_STANDARD_LIBRARY.md). A primeira su
 - `mostrar(...)` como instrução da linguagem
 - `entrada_fonte()` como intrínseco reservado ao frontend auto-hospedado
 
-O exemplo executável está em [biblioteca_padrao.gp](../exemplos/biblioteca_padrao.gp).
+O exemplo executável está em [biblioteca_padrao.gp](../exemplos/biblioteca_padrao.gp). Funções matemáticas puras adicionais estão no módulo [matematica.gp](matematica.gp).
 
 ## Política
 
 Uma função só entra na biblioteca padrão depois de possuir assinatura e semântica documentadas, paridade entre o interpretador bootstrap e as VMs Python/C aplicáveis, limites explícitos, testes positivos/negativos e exemplo executável. Não duplicar implementação de runtime em módulos GP quando a primitiva ainda depende de suporte nativo.
+
+## Integração híbrida opcional
+
+- [host.gp](host.gp): wrappers para GP Host Capabilities ABI v1. Funciona nos runtimes Python e C e não exige --python-interop; consulte [HOST_CAPABILITIES_ABI.md](../docs/HOST_CAPABILITIES_ABI.md).
+- [python.gp](python.gp): wrappers GP para a allowlist Python (math, statistics, hashlib, unicodedata, textwrap). Exige runtime híbrido com --python-interop; consulte [PYTHON_INTEROP.md](../docs/PYTHON_INTEROP.md).
