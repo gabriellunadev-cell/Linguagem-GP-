@@ -1258,6 +1258,96 @@ class GPNativeVMTests(unittest.TestCase):
         self.assertIn("encoder C nativo", result.stdout)
         self.assertIn("Resultado do módulo: 42", result.stdout)
 
+    def test_native_vm_executes_versioned_host_abi_and_matches_python(self):
+        source = """
+            numero raiz = host_chamar("gp.core.v1.math.sqrt", [81])
+            numero divisor = host_chamar("gp.core.v1.math.gcd", [18, 24])
+            numero media = host_chamar("gp.core.v1.statistics.mean", [[2, 4, 6, 8]])
+            numero mediana = host_chamar("gp.core.v1.statistics.median", [[1, 3, 5]])
+            se (raiz == 9 && divisor == 6 && media == 5 && mediana == 3) {
+                mostrar("PORTABLE_ABI_OK")
+            } senao {
+                mostrar("PORTABLE_ABI_MISMATCH")
+            }
+        """
+        _ast, _ir, bytecode = compile_source(source)
+        reference = io.StringIO()
+        with contextlib.redirect_stdout(reference):
+            GPVirtualMachine().run_bytes(bytecode)
+        path = Path(self.temp.name) / "host-abi-cross-runtime.gbc"
+        path.write_bytes(bytecode)
+        native = subprocess.run(
+            [str(self.vm_binary), str(path)],
+            text=True, capture_output=True, check=False,
+        )
+        self.assertEqual(reference.getvalue(), "PORTABLE_ABI_OK\n")
+        self.assertEqual(native.returncode, 0, native.stderr)
+        self.assertEqual(native.stdout, reference.getvalue())
+
+    def test_native_vm_host_library_module_matches_reference_runtime(self):
+        source_path = self.project / "exemplos" / "modulos" / "host_abi_check.gp"
+        source = """
+            usar "../../biblioteca/host.gp" como nativo
+            numero raiz = nativo.raiz_quadrada(81)
+            numero divisor = nativo.mdc(18, 24)
+            numero media = nativo.media([2, 4, 6, 8])
+            numero variancia = nativo.variancia_populacional([2, 4, 6])
+            se (raiz == 9 && divisor == 6 && media == 5 && variancia > 2.66 && variancia < 2.67) {
+                mostrar("HOST_LIBRARY_OK")
+            } senao {
+                mostrar("HOST_LIBRARY_MISMATCH")
+            }
+        """
+        _, _, reference_bytecode = compile_source(source, source_path=source_path)
+        reference_output = io.StringIO()
+        with contextlib.redirect_stdout(reference_output):
+            GPVirtualMachine().run_bytes(reference_bytecode)
+        program = compile_source_selfhosted(
+            source, source_path=source_path, runner_backend="native", native_vm=self.vm_binary,
+        )
+        from gpcompiler.bytecode import encode
+        native_path = Path(self.temp.name) / "host-abi-library-native.gbc"
+        native_path.write_bytes(encode(program))
+        native = subprocess.run(
+            [str(self.vm_binary), str(native_path)],
+            text=True, capture_output=True, check=False,
+        )
+        self.assertEqual(reference_output.getvalue(), "HOST_LIBRARY_OK\n")
+        self.assertEqual(native.returncode, 0, native.stderr)
+        self.assertEqual(native.stdout, reference_output.getvalue())
+
+    def test_native_vm_host_abi_runs_bytecode_from_self_hosted_frontend(self):
+        source = """
+            numero result = host_chamar("gp.core.v1.math.factorial", [6])
+            numero common = host_chamar("gp.core.v1.math.gcd", [54, 24])
+            se (result == 720 && common == 6) { mostrar("SELF_HOSTED_ABI_OK") }
+        """
+        program = compile_source_selfhosted(
+            source, runner_backend="native", native_vm=self.vm_binary,
+        )
+        from gpcompiler.bytecode import encode
+        path = Path(self.temp.name) / "host-abi-selfhosted.gbc"
+        path.write_bytes(encode(program))
+        native = subprocess.run(
+            [str(self.vm_binary), str(path)], text=True, capture_output=True, check=False,
+        )
+        self.assertEqual(native.returncode, 0, native.stderr)
+        self.assertEqual(native.stdout, "SELF_HOSTED_ABI_OK\n")
+
+    def test_native_vm_rejects_unknown_host_capability_and_invalid_domain(self):
+        unknown = self.run_native('host_chamar("gp.core.v1.os.system", ["id"])')
+        self.assertNotEqual(unknown.returncode, 0)
+        self.assertIn("capacidade GP Host ABI v1 desconhecida", unknown.stderr)
+        invalid = self.run_native('host_chamar("gp.core.v1.math.sqrt", [-1])')
+        self.assertNotEqual(invalid.returncode, 0)
+        self.assertIn("argumento não pode ser negativo", invalid.stderr)
+
+    def test_native_vm_enforces_host_abi_call_budget(self):
+        call = 'host_chamar("gp.core.v1.math.factorial", [5])\n'
+        result = self.run_native(call * 1025)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("limite de 1024 chamadas", result.stderr)
+
     def test_native_vm_unir_textos_handles_unicode_and_empty_list(self):
         result = self.run_native("""
             lista texto partes = ["Olá", " ", "GP", " 🚀"]

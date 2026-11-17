@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from gpcompiler.python_interop import PythonInterop, PythonInteropError
+from gpcompiler.host_abi import HostABI, HostABIError
 
 
 GP_MAX_TEXT_JOIN_BYTES = 64 * 1024 * 1024
@@ -732,6 +733,17 @@ def run_source(
     root.define("adicionar", GPBuiltin("adicionar", _builtin_add))
     root.define("remover", GPBuiltin("remover", _builtin_remove))
     root.define("unir_textos", GPBuiltin("unir_textos", _builtin_join_texts))
+    host_bridge = HostABI()
+
+    def call_host(arguments: list[Any]) -> Any:
+        if len(arguments) != 2:
+            raise GPError("host_chamar() exige o identificador da capacidade e uma lista")
+        try:
+            return host_bridge.call(arguments[0], arguments[1])
+        except HostABIError as exc:
+            raise GPError(str(exc)) from exc
+
+    root.define("host_chamar", GPBuiltin("host_chamar", call_host))
     python_bridge = PythonInterop() if python_interop else None
 
     def call_python(arguments: list[Any]) -> Any:

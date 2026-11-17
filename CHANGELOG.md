@@ -1,4 +1,16 @@
-## Integração IDE — GP Bridge 0.2 (mantém GP 0.8.52)
+## GP 0.8.53 — GP Host Capabilities ABI v1 — 2026-11-16
+
+- Adicionado contrato Host ABI v1 com prefixo versionado gp.core.v1., manifesto do catálogo, assinaturas e limites por execução.
+- As VMs Python e C passam a despachar 21 capacidades determinísticas de matemática e estatística através de host_chamar, sem dependência de libpython.
+- O builtin está disponível também no interpretador bootstrap e no frontend auto-hospedado; retornos dinâmicos são conferidos pelo tipo declarado no runtime.
+- biblioteca/host.gp e exemplos/host_capabilities.gp demonstram o uso portável sem a flag --python-interop.
+- GP Bridge 0.3 anuncia versão, catálogo e limites do ABI em /api/health.
+- py_chamar continua separado, opcional, protegido por allowlist e exclusivo da VM Python.
+- GP-IR v1 e GGPC v2 preservados; testes Python/C, módulo GP e bootstrap adicionados.
+- Validação integral: 335 testes em 165,633 s; corpus 6/6; fuzz 64 com zero divergências; hashes aprovados; exemplo ABI executado no Linux ARM64/QEMU; Windows x64 PE cross-compilado.
+
+## Integração IDE — GP Bridge 0.2 (GP 0.8.52)
+
 
 - A Bridge passa a oferecer `/api/compile-project` e `/api/run-project`, recebendo o arquivo principal e os módulos enviados pelo GP Programinha.
 - A API confina os imports ao conjunto de arquivos recebido: rejeita caminhos absolutos, backslashes, traversal para fora da raiz e módulos ausentes, inclusive em imports aninhados.

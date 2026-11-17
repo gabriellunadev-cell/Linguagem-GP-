@@ -1,6 +1,6 @@
 # GP — Gabriel Programming
 
-> GP 0.8.52: execução híbrida Python + GP está integrada ao interpretador bootstrap, ao frontend auto-hospedado e ao GP Programinha. py_chamar usa allowlist segura, exige opt-in e executa na VM Python de referência. make validate em 2026-11-15: 318 testes aprovados, corpus 6/6, fuzz 64 sem divergências; Linux ARM64 via QEMU e Windows x64 via CI. Android NDK/Bionic e WASI seguem pendentes; a VM C não executa Python arbitrário.
+> GP 0.8.53: Host Capabilities ABI v1 nos runtimes Python e C, com GP-IR v1 e GGPC v2 preservados. Validação completa: 335 testes aprovados, corpus 6/6, fuzz 64 sem divergências, runtime Host ABI x86-64 e Linux ARM64/QEMU aprovados. Windows x64 PE foi cross-compilado; execução Windows desta revisão aguarda CI. Android NDK/Bionic e WASI seguem pendentes.
 
 
 Linguagem proprietária do projeto Gabriel Luna, com prioridade de desenvolvimento e execução no Android ARM64.
@@ -21,10 +21,11 @@ O CLI separa a VM que executa o frontend auto-hospedado (`--runner-vm`) da VM qu
 A GP permanece em versão 0.x enquanto os portões de estabilidade do documento 1.0.0 não forem satisfeitos.
 - [GP Host Input](docs/GP_HOST_INPUT_SPEC.md): entrada textual explícita fornecida pelo host.
 - [Biblioteca padrão](docs/GP_STANDARD_LIBRARY.md): contratos iniciais, incluindo `unir_textos`.
+- [GP Host Capabilities ABI v1](docs/HOST_CAPABILITIES_ABI.md): capacidades portáveis com despacho nas VMs Python e C.
 
 ## Estado atual
 
-**GP Core 0.4 + toolchain nativo experimental: 318 testes aprovados na VPS; GC iterativo; compilação nativa de arquivo único e projetos com imports; resolvedor de grafo; biblioteca matemática; Linux x86_64 validado; Linux ARM64 executado via QEMU; Windows x64 executado no GitHub Actions windows-latest. Android NDK/Bionic e WASI continuam pendentes de validação nesta matriz; autohospedagem integral permanece em desenvolvimento.**
+**GP Core 0.4 + toolchain nativo experimental: 335 testes aprovados; GC iterativo; compilação nativa de arquivo único e projetos com imports; Host ABI validado no runtime Python, C x86_64 e C Linux ARM64 via QEMU; Windows x64 PE cross-compilado, execução da revisão atual aguardando CI. Android NDK/Bionic e WASI continuam pendentes; autohospedagem integral permanece em desenvolvimento.**
 
 Existem três caminhos no projeto:
 
@@ -71,6 +72,17 @@ Executar o harness diferencial limitado:
     make fuzz-bytecode FUZZ_ITERATIONS=64 FUZZ_SEED=0x47505632 FUZZ_TIMEOUT=2 FUZZ_REPORT=build/fuzz-reports/latest.json
 
 O harness compara os loaders/VMs Python e C em mutações válidas e inválidas; limites e interpretação dos resultados estão em docs/BYTECODE_V2_SPEC.md, seção 11. Este smoke fuzzing não substitui fuzzing guiado por cobertura.
+
+## GP Host Capabilities ABI v1
+
+A biblioteca portável de capacidades do host oferece operações de matemática e estatística na VM Python e na VM C, sem depender de libpython. O builtin host_chamar usa IDs versionados (gp.core.v1.*), catálogo fechado e limites por execução. O ABI está documentado em [docs/HOST_CAPABILITIES_ABI.md](docs/HOST_CAPABILITIES_ABI.md), e os wrappers GP ficam em biblioteca/host.gp.
+
+Execute o exemplo nos dois runtimes:
+
+    ./bin/gpc exemplos/host_capabilities.gp --run
+    ./bin/gpc exemplos/host_capabilities.gp --self-hosted --runner-vm native --run --run-vm native
+
+A extensão py_chamar continua separada, exige --python-interop e só executa na VM Python de referência.
 
 ## Backend nativo experimental
 

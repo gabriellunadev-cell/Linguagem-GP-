@@ -18,11 +18,12 @@ from urllib.parse import urlsplit
 from gp import GPError, Parser, lex
 from gpcompiler.ast import from_parser_tree
 from gpcompiler.python_interop import PythonInterop, MAX_CALLS_PER_RUN
+from gpcompiler.host_abi import host_capabilities_manifest
 
 GP_ROOT = Path(__file__).resolve().parent
 COMPILER = GP_ROOT / "gp_compile.py"
-GP_VERSION = "0.8.52"
-BRIDGE_VERSION = "0.2"
+GP_VERSION = "0.8.53"
+BRIDGE_VERSION = "0.3"
 MAX_REQUEST_BYTES = 20 * 1024 * 1024
 MAX_FILES = 128
 MAX_FILE_BYTES = 4 * 1024 * 1024
@@ -390,6 +391,7 @@ class GPBridgeHandler(BaseHTTPRequestHandler):
                 "allowlist": list(PythonInterop().allowlist),
                 "maxCallsPerRun": MAX_CALLS_PER_RUN,
             },
+            "hostCapabilities": host_capabilities_manifest(),
             "limits": {
                 "files": MAX_FILES,
                 "fileBytes": MAX_FILE_BYTES,

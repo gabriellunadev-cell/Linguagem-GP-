@@ -2356,21 +2356,21 @@ funcao tipo_expressao_semantica_ast_gp(numero indice, numero escopo) -> texto {
             }
             retornar valor
         }
-        se (valor == "py_chamar") {
+        se (valor == "py_chamar" || valor == "host_chamar") {
             se (quantidade_filhos_ast_gp(indice) != 2) {
-                erro_semantico_ast_gp = "py_chamar exige dois argumentos: capacidade e lista"
+                erro_semantico_ast_gp = valor + " exige dois argumentos: identificador e lista"
                 retornar "desconhecido"
             }
             texto tipo_capacidade_python_gp = tipo_expressao_semantica_ast_gp(obter_filho_ast_gp(indice, 0), escopo)
             se (erro_semantico_ast_gp != "") { retornar "desconhecido" }
             se (tipo_capacidade_python_gp != "texto") {
-                erro_semantico_ast_gp = "O primeiro argumento de py_chamar deve ser texto"
+                erro_semantico_ast_gp = "O primeiro argumento de " + valor + " deve ser texto"
                 retornar "desconhecido"
             }
             texto tipo_argumentos_python_gp = tipo_expressao_semantica_ast_gp(obter_filho_ast_gp(indice, 1), escopo)
             se (erro_semantico_ast_gp != "") { retornar "desconhecido" }
             se (tipo_elemento_lista_semantica_ast_gp(tipo_argumentos_python_gp) == "") {
-                erro_semantico_ast_gp = "O segundo argumento de py_chamar deve ser uma lista"
+                erro_semantico_ast_gp = "O segundo argumento de " + valor + " deve ser uma lista"
                 retornar "desconhecido"
             }
             retornar "desconhecido"
@@ -2678,7 +2678,7 @@ funcao analisar_comando_semantico_ast_gp(numero indice, numero escopo) -> logico
         texto tipo_retorno = "vazio"
         se (quantidade_filhos_ast_gp(indice) > 0) { tipo_retorno = tipo_expressao_semantica_ast_gp(obter_filho_ast_gp(indice, 0), escopo) }
         se (erro_semantico_ast_gp != "") { retornar falso }
-        se (tipo_retorno != retorno_funcao_atual_semantica_gp) { erro_semantico_ast_gp = "Retorno incompativel: esperado " + retorno_funcao_atual_semantica_gp + ", recebido " + tipo_retorno; retornar falso }
+        se (tipo_retorno != retorno_funcao_atual_semantica_gp && tipo_retorno != "desconhecido") { erro_semantico_ast_gp = "Retorno incompativel: esperado " + retorno_funcao_atual_semantica_gp + ", recebido " + tipo_retorno; retornar falso }
         retornar verdadeiro
     }
     se (no.categoria == "BLOCO") {

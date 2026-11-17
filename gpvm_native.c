@@ -236,6 +236,7 @@ typedef struct {
     size_t gc_allocated_objects;
     Value ascii_cache[128];
     uint64_t steps, max_steps;
+    size_t host_call_count;
     char *host_source;
     char error[512];
 } VM;
@@ -1126,7 +1127,22 @@ static int binary_op(VM *vm, const char *op, Value a, Value b, Value *out) {
     }
     vm_error(vm, "tipos incompatíveis em operação binária"); return 0;
 }
+#include "gp_host_abi.inc"
+
 static int call_builtin(VM *vm, const char *name, Value *args, int count, Value *out) {
+    if (strcmp(name, "host_chamar") == 0) {
+        if (count != 2 || args[0].type != V_STRING || !args[0].string ||
+            args[1].type != V_ARRAY || !args[1].array) {
+            vm_error(vm, "host_chamar() exige identificador texto e lista de argumentos");
+            return 0;
+        }
+        if (args[1].array->len > GP_HOST_MAX_ARGUMENTS) {
+            vm_error(vm, "host_chamar(): máximo de 16 argumentos por capacidade");
+            return 0;
+        }
+        return gp_host_call(vm, args[0].string, args[1].array->items,
+                            (int)args[1].array->len, out);
+    }
     if (strcmp(name, "entrada_fonte") == 0 && count == 0) {
         if (!vm->host_source) {
             vm_error(vm, "entrada_fonte indisponível: o host não forneceu uma fonte");

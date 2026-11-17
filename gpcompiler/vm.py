@@ -2,6 +2,7 @@
 from __future__ import annotations
 from .bytecode import decode
 from .python_interop import PythonInterop, PythonInteropError
+from .host_abi import HostABI, HostABIError
 
 
 GP_MAX_HOST_SOURCE_BYTES = 16 * 1024 * 1024
@@ -41,6 +42,7 @@ class GPVirtualMachine:
             raise ValueError("python_interop precisa ser booleano")
         self.max_steps = max_steps
         self.python_interop = PythonInterop() if python_interop else None
+        self.host_abi = HostABI()
         self.steps = 0
         self.globals = {}
         self.global_types = {}
@@ -94,6 +96,13 @@ class GPVirtualMachine:
             raise GPVMError(f"Operação inválida {op}: {exc}") from exc
 
     def _call_builtin(self, name, args):
+        if name == "host_chamar":
+            if len(args) != 2:
+                raise GPVMError("host_chamar() exige o identificador da capacidade e uma lista")
+            try:
+                return self.host_abi.call(args[0], args[1])
+            except HostABIError as exc:
+                raise GPVMError(str(exc)) from exc
         if name == "py_chamar":
             if self.python_interop is None:
                 raise GPVMError("py_chamar indisponível: ative --python-interop no runtime Python")
@@ -312,6 +321,7 @@ class GPVirtualMachine:
         self.globals = {}
         self.global_types = {}
         self._host_source = host_source
+        self.host_abi.reset()
         if self.python_interop is not None:
             self.python_interop.reset()
         try:

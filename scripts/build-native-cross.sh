@@ -25,6 +25,18 @@ scripts/gpc-native-project exemplos/modulos/aplicacao.gp build/cross-target-modu
     > build/cross-target-arm64-smoke.stdout \
     2> build/cross-target-arm64-smoke.stderr
 grep -F "Resultado do módulo: 42" build/cross-target-arm64-smoke.stdout
+# Execute the portable host-capability catalog on the ARM64 native runtime.
+scripts/gpc-native-project exemplos/host_capabilities.gp build/cross-target-host-abi.gbc
+"$QEMU_AARCH64" -L "$ARM64_SYSROOT" \
+    build/gpvm-native-linux-arm64 build/cross-target-host-abi.gbc \
+    > build/cross-target-arm64-host-abi.stdout \
+    2> build/cross-target-arm64-host-abi.stderr
+grep -F "Raiz: 9" build/cross-target-arm64-host-abi.stdout
+grep -F "MDC: 6" build/cross-target-arm64-host-abi.stdout
+grep -F "MMC: 24" build/cross-target-arm64-host-abi.stdout
+grep -F "Média: 5" build/cross-target-arm64-host-abi.stdout
+grep -F "Hipotenusa: 5" build/cross-target-arm64-host-abi.stdout
+echo "GP_HOST_ABI_ARM64_OK"
 WASI_PYTHON=${GP_WASMTIME_PYTHON:-python3}
 if [ -n "${GP_WASI_ZLIB_PREFIX:-}" ] && command -v clang-18 >/dev/null 2>&1 && "$WASI_PYTHON" -c 'import wasmtime' >/dev/null 2>&1; then
     scripts/build-wasi.sh

@@ -419,4 +419,20 @@ A linha de base da VM C e do frontend auto-hospedado está em `docs/PERFORMANCE_
 - biblioteca/python.gp oferece wrappers GP para matemática, estatística, hash e normalização Unicode.
 - Segurança: allowlist fechada, limites de chamadas/argumentos/valores, sem eval/exec, importação dinâmica, shell, filesystem ou rede.
 - Compatibilidade: GP-IR v1 e GGPC v2 permanecem inalterados. A VM C nativa continua independente da camada Python.
-- Próxima fronteira: definir um ABI de host capabilities no GP-IR para que runtimes nativos implementem capacidades explicitamente portáveis; não encaminhar chamadas Python arbitrárias para a VM C.
+- Próxima fronteira foi entregue no ciclo GP 0.8.53: GP Host Capabilities ABI v1 com identificadores gp.core.v1.*, contrato fechado, manifesto de capacidades e despacho independente do Python. A VM Python e a VM C implementam o catálogo portátil; py_chamar permanece uma extensão separada e opcional.
+
+
+## GP 0.8.53 — GP Host Capabilities ABI v1 — 2026-11-16
+
+- [x] Definido ABI de host versionado com prefixo gp.core.v1., IDs estáveis, manifest JSON, descrições de assinatura, tipos de argumento/retorno e limites normativos.
+- [x] Registradas 21 capacidades determinísticas: matemática (raiz, trigonometria, logaritmos, exponencial, abs, arredondamentos, fatorial, MDC/MMC, hipotenusa, finitude) e estatística (média, mediana, variância e desvios padrão).
+- [x] Implementado dispatcher no runtime Python e no runtime C, sem dependência de libpython. O builtin GP host_chamar reutiliza a instrução CALL existente.
+- [x] Mantidos GP-IR v1 e GGPC v2, sem alteração do bytecode para essa extensão.
+- [x] Frontend auto-hospedado em GP valida a assinatura do builtin; interpretador bootstrap oferece o mesmo builtin.
+- [x] Biblioteca biblioteca/host.gp fornece wrappers GP portáveis; biblioteca/python.gp permanece opcional.
+- [x] GP Bridge health anuncia versão do ABI, limites e catálogo ativo.
+- [x] Segurança: catálogo fechado, sem resolução dinâmica; até 1.024 chamadas, 16 argumentos, listas limitadas a 10.000 valores e números dentro do intervalo seguro.
+- [x] make validate: 335 testes em 165,633 s; zero falhas/skips; corpus diferencial 6/6; fuzz 64 (38 rejeições, 26 execuções aceitas, zero divergências); hashes e git diff --check aprovados.
+- [x] VM C Linux ARM64 executada via QEMU com o exemplo completo host_capabilities.gp; marker GP_HOST_ABI_ARM64_OK.
+- [x] Windows x64 PE cross-compilado; runtime Windows da revisão 0.8.53 aguarda workflow CI após o push.
+- [ ] Android NDK/Bionic e WASI runtime permanecem pendentes; testes de desempenho ficam para o próximo ciclo.

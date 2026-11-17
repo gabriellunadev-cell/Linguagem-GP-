@@ -21,4 +21,5 @@ Uma função só entra na biblioteca padrão depois de possuir assinatura e sem�
 
 ## Integração híbrida opcional
 
-- python.gp: wrappers GP para a allowlist Python (math, statistics, hashlib, unicodedata, textwrap). Exige runtime híbrido com --python-interop; consulte docs/PYTHON_INTEROP.md.
+- [host.gp](host.gp): wrappers para GP Host Capabilities ABI v1. Funciona nos runtimes Python e C e não exige --python-interop; consulte [HOST_CAPABILITIES_ABI.md](../docs/HOST_CAPABILITIES_ABI.md).
+- [python.gp](python.gp): wrappers GP para a allowlist Python (math, statistics, hashlib, unicodedata, textwrap). Exige runtime híbrido com --python-interop; consulte [PYTHON_INTEROP.md](../docs/PYTHON_INTEROP.md).

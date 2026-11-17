@@ -1,5 +1,18 @@
 # ENGINEERING_STATUS — Gabriel Programming
 
+## GP 0.8.53 — Host Capabilities ABI v1 — 2026-11-16
+
+- Implementado o builtin host_chamar com catálogo versionado gp.core.v1. e 21 capacidades determinísticas de matemática/estatística.
+- Despacho equivalente na VM Python e na VM C, independente de libpython; sem importação dinâmica, shell, subprocessos, arquivos ou rede.
+- Limites: 1.024 chamadas por execução, 16 argumentos, listas até 10.000 elementos, profundidade até 8, textos até 1 MiB e inteiro seguro até ±(2^53−1).
+- Interpretador bootstrap, frontend auto-hospedado, biblioteca/host.gp e Bridge 0.3 integrados; /api/health publica versão, catálogo e limites.
+- py_chamar continua separado, opt-in e restrito ao runtime Python; não foi implementado na VM C.
+- make validate: exit 0; 335 testes em 165,633 s; zero falhas/skips; corpus 6/6; fuzz 64 com 38 rejeições, 26 aceitos/executados e zero divergências; hashes e diff check aprovados.
+- VM C x86_64 executou o catálogo; VM C Linux ARM64 executou exemplos/host_capabilities.gp sob QEMU e emitiu GP_HOST_ABI_ARM64_OK. Windows x64 PE cross-compilado; runtime desta revisão aguarda CI.
+- Android NDK/Bionic e WASI permanecem pendentes; GP continua 0.x e a autohospedagem integral não foi declarada concluída.
+
+---
+
 ## Integração híbrida Python + GP — 2026-11-15
 
 - Implementado o builtin GP py_chamar na VM de referência com opção explícita --python-interop; sem a opção, a chamada falha de forma fechada.

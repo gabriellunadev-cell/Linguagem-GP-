@@ -63,4 +63,4 @@ Os caminhos enviados em `files[].path` são relativos à raiz do projeto. Import
 - Não existem endpoints genéricos de shell, leitura arbitrária de arquivos, rede, administração ou acesso a credenciais.
 - Não publique a porta, não faça proxy reverso para a internet e não exponha o Bridge em `0.0.0.0`.
 
-A Bridge 0.2 não altera a versão da linguagem, que permanece em GP 0.8.52. A execução ainda usa a VM Python de referência; seleção do runtime nativo e depuração interativa ficam para etapas posteriores.
+A Bridge 0.3 anuncia o GP Host Capabilities ABI v1 no endpoint /api/health, incluindo versão, IDs, assinaturas e limites. Programas que usam host_chamar executam o catálogo portátil no runtime de referência Python ou na VM C nativa fora do Bridge. O endpoint de execução HTTP continua usando a VM Python de referência. A extensão py_chamar permanece opt-in via pythonInterop e não é encaminhada à VM C.

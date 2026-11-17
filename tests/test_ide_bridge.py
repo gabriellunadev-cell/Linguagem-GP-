@@ -263,10 +263,16 @@ class GPBridgeHTTPTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertTrue(body["ok"])
         self.assertTrue(body["projectApi"])
-        self.assertEqual(body["bridgeVersion"], "0.2")
+        self.assertEqual(body["bridgeVersion"], "0.3")
         self.assertTrue(body["pythonInterop"]["available"])
         self.assertFalse(body["pythonInterop"]["defaultEnabled"])
         self.assertIn("math.sqrt", body["pythonInterop"]["allowlist"])
+        self.assertEqual(body["hostCapabilities"]["abiVersion"], 1)
+        self.assertTrue(body["hostCapabilities"]["defaultEnabled"])
+        self.assertIn(
+            "gp.core.v1.math.sqrt",
+            [item["identifier"] for item in body["hostCapabilities"]["capabilities"]],
+        )
 
     def test_configured_public_host_is_accepted_over_real_http(self):
         request = urllib.request.Request(

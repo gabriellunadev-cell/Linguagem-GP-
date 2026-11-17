@@ -257,6 +257,19 @@ class SelfHostedIRAdapterTests(unittest.TestCase):
             )
         self.assertEqual(output.getvalue(), "9.0 64\n")
 
+    def test_self_hosted_function_returns_host_abi_dynamic_value_with_runtime_type_check(self):
+        source = """
+            funcao raiz_quadrada(numero valor) -> numero {
+                retornar host_chamar("gp.core.v1.math.sqrt", [valor])
+            }
+            mostrar(raiz_quadrada(81))
+        """
+        document = compile_source_selfhosted_document(source)
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            GPVirtualMachine().run_bytes(encode_canonical_ir(document))
+        self.assertEqual(output.getvalue(), "9.0\n")
+
     def test_self_hosted_frontend_validates_python_interop_call_shape(self):
         with self.assertRaisesRegex(ValueError, "py_chamar exige dois argumentos"):
             compile_source_selfhosted_document('py_chamar("math.sqrt")')
